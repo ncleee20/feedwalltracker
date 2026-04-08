@@ -2306,13 +2306,7 @@ const sbClient = supabase.createClient(SB_URL, SB_KEY);
 async function connectSupabase() {} // not used
 
 async function tryAutoConnect() {
-  try {
-    const { error } = await sbClient.from(TABLE_POSTS).select('id').limit(1);
-    if (error && error.code !== 'PGRST116') throw error;
-    return true;
-  } catch(e) {
-    return false;
-  }
+  return true;
 }
 
 // ============================================================
@@ -2457,7 +2451,7 @@ let openedFromTracker = false;
 async function loadPosts() {
   showLoading('Loading posts...');
   try {
-    const { data, error } = await supabase
+    const { data, error } = await sbClient
       .from(TABLE_POSTS)
       .select('*')
       .order('post_date', { ascending: false })
