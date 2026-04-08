@@ -2490,34 +2490,19 @@ async function uploadFileToStorage(file, onProgress) {
   const ext = file.name.split('.').pop();
   const path = `posts/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
 
-  // Supabase JS v2 doesn't support upload progress natively,
-  // so we use XMLHttpRequest for progress tracking
-  return new Promise(async (resolve, reject) => {
-    const sbUrl = SB_URL;
-    const sbKey = SB_KEY;
+  // Use Supabase JS client directly for upload
+  if (onProgress) onProgress(10); // show some progress immediately
 
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', `${sbUrl}/storage/v1/object/${STORAGE_BUCKET}/${path}`);
-    xhr.setRequestHeader('Authorization', `Bearer ${sbKey}`);
-    xhr.setRequestHeader('x-upsert', 'true');
+  const { data, error } = await sbClient.storage
+    .from(STORAGE_BUCKET)
+    .upload(path, file, { upsert: true, contentType: file.type });
 
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
-    };
+  if (error) throw new Error(error.message);
 
-    xhr.onload = () => {
-      if (xhr.status === 200 || xhr.status === 201) {
-        // Get public URL
-        const { data } = sbClient.storage.from(STORAGE_BUCKET).getPublicUrl(path);
-        resolve({ path, url: data.publicUrl });
-      } else {
-        reject(new Error('Upload failed: ' + xhr.statusText));
-      }
-    };
+  if (onProgress) onProgress(100);
 
-    xhr.onerror = () => reject(new Error('Upload network error'));
-    xhr.send(file);
-  });
+  const { data: urlData } = sbClient.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+  return { path, url: urlData.publicUrl };
 }
 
 async function uploadThumbToStorage(dataUrl, baseName) {
