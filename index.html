@@ -2289,7 +2289,7 @@ function renderAdminPanel() {
 // ============================================================
 // SUPABASE SETUP
 // ============================================================
-let sbClient = null;
+// sbClient declared as const below
 const STORAGE_BUCKET = 'feedwall-media';
 const TABLE_POSTS = 'posts';
 const TABLE_MODELS = 'models';
@@ -2300,11 +2300,13 @@ const TABLE_STATS = 'post_stats';
 const SB_URL = 'https://pmcrjpxkstygmswucmcr.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtY3JqcHhrc3R5Z21zd3VjbWNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1OTUxNDUsImV4cCI6MjA5MTE3MTE0NX0.86VNoFNBaTui6qjXaL5j6Ck76ML9SqnWLq2melFgUEE';
 
+// sbClient created once here — never recreated
+const sbClient = supabase.createClient(SB_URL, SB_KEY);
+
 async function connectSupabase() {} // not used
 
 async function tryAutoConnect() {
   try {
-    sbClient = supabase.createClient(SB_URL, SB_KEY);
     const { error } = await sbClient.from(TABLE_POSTS).select('id').limit(1);
     if (error && error.code !== 'PGRST116') throw error;
     return true;
