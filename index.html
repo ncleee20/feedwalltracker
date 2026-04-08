@@ -5,15 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Feed Wall</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-<script>
-// Normalize Supabase client access across CDN versions
-window._supabaseCreate = (window.supabase && window.supabase.createClient)
-  ? window.supabase.createClient
-  : (window.supabaseJs && window.supabaseJs.createClient)
-  ? window.supabaseJs.createClient
-  : null;
-</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
   :root {
     --bg: #f5f0eb;
@@ -2305,13 +2298,13 @@ const TABLE_STATS = 'post_stats';
 
 // Supabase credentials hardcoded — no setup screen needed
 const SB_URL = 'https://pmcrjpxkstygmswucmcr.supabase.co';
-const SB_KEY = 'sb_publishable_Hh1nK2agw28luApQNsuw2A_XN8yMv6j';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBtY3JqcHhrc3R5Z21zd3VjbWNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1OTUxNDUsImV4cCI6MjA5MTE3MTE0NX0.86VNoFNBaTui6qjXaL5j6Ck76ML9SqnWLq2melFgUEE';
 
 async function connectSupabase() {} // not used
 
 async function tryAutoConnect() {
   try {
-    sbClient = window._supabaseCreate(SB_URL, SB_KEY);
+    sbClient = window.supabase.createClient(SB_URL, SB_KEY);
     const { error } = await sbClient.from(TABLE_POSTS).select('id').limit(1);
     if (error && error.code !== 'PGRST116') throw error;
     return true;
