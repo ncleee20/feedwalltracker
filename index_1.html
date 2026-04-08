@@ -1,0 +1,3455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Feed Wall</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #f5f0eb;
+    --surface: #faf7f4;
+    --border: #e0d8d0;
+    --text: #1a1612;
+    --muted: #8a7f74;
+    --accent: #c9a96e;
+    --accent-dark: #a07840;
+    --card-bg: #ffffff;
+    --shadow: 0 2px 20px rgba(0,0,0,0.06);
+    --models: #1a1612;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Jost', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* SETUP SCREEN */
+  #setupScreen {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .setup-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 40px;
+    width: 480px;
+    max-width: 95vw;
+  }
+
+  .setup-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 300;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .setup-logo span { color: var(--accent); font-style: italic; }
+
+  .setup-sub {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+  }
+
+  .setup-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .setup-input {
+    width: 100%;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    font-family: 'Jost', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    border-radius: 2px;
+    outline: none;
+    margin-bottom: 16px;
+    transition: border-color 0.2s;
+  }
+
+  .setup-input:focus { border-color: var(--accent); }
+
+  .setup-btn {
+    width: 100%;
+    background: var(--text);
+    color: #fff;
+    border: none;
+    padding: 12px;
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    margin-top: 8px;
+    transition: background 0.2s;
+  }
+
+  .setup-btn:hover { background: var(--accent-dark); }
+
+  .setup-error {
+    color: #e05;
+    font-size: 12px;
+    margin-top: 8px;
+    display: none;
+  }
+
+  .setup-note {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 16px;
+    line-height: 1.6;
+  }
+
+  /* LOADING OVERLAY */
+  #loadingOverlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(245,240,235,0.85);
+    z-index: 500;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 16px;
+    backdrop-filter: blur(4px);
+  }
+
+  #loadingOverlay.show { display: flex; }
+
+  .loading-spinner {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .loading-text {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* TOAST */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--text);
+    color: #fff;
+    padding: 10px 24px;
+    border-radius: 2px;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    z-index: 999;
+    transition: transform 0.3s ease;
+    white-space: nowrap;
+  }
+
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.error { background: #c0392b; }
+  #toast.success { background: var(--accent-dark); }
+
+  /* HEADER */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+  }
+
+  .logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px;
+    font-weight: 300;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+
+  .logo span { color: var(--accent); font-style: italic; }
+
+  .header-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  /* FILTER DROPDOWN */
+  .filter-wrap { position: relative; }
+
+  select {
+    appearance: none;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    padding: 8px 36px 8px 14px;
+    font-family: 'Jost', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text);
+    cursor: pointer;
+    border-radius: 2px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  select:hover { border-color: var(--accent); }
+
+  .filter-wrap::after {
+    content: '▾';
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 11px;
+    pointer-events: none;
+  }
+
+  /* UPLOAD BUTTON */
+  .upload-btn {
+    background: var(--text);
+    color: #fff;
+    border: none;
+    padding: 8px 20px;
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background 0.2s;
+  }
+
+  .upload-btn:hover { background: var(--accent-dark); }
+  .upload-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* TABS */
+  .tab-nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex;
+  }
+
+  .tab-btn {
+    padding: 12px 24px;
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: -1px;
+  }
+
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* TRACKER TABLE */
+  .tracker-wrap {
+    padding: 32px;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  .tracker-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .tracker-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 300;
+    font-style: italic;
+  }
+
+  .tracker-date {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .tracker-progress {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .progress-bar-wrap {
+    flex: 1;
+    height: 4px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 4px;
+    transition: width 0.4s ease;
+  }
+
+  .progress-text {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .tracker-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .tracker-table th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tracker-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    vertical-align: middle;
+  }
+
+  .tracker-table tr:last-child td { border-bottom: none; }
+  .tracker-table tr.done td { opacity: 0.45; }
+  .tracker-table tr.done .tracker-caption { text-decoration: line-through; }
+  .tracker-table tr:hover td { background: rgba(201,169,110,0.06); }
+  .tracker-table td[onclick] { transition: background 0.15s; }
+  .tracker-table td[onclick]:hover { background: rgba(201,169,110,0.12) !important; }
+
+  .tracker-model-badge {
+    display: inline-block;
+    background: var(--text);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 1px;
+  }
+
+  .tracker-time {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--accent-dark);
+  }
+
+  .tracker-reel {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: var(--muted);
+  }
+
+  .tracker-caption {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 14px;
+    color: var(--text);
+    max-width: 300px;
+  }
+
+  .tracker-check {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  .tracker-empty {
+    text-align: center;
+    padding: 60px;
+    color: var(--muted);
+  }
+
+  .tracker-empty-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 300;
+    font-style: italic;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+
+  .tracker-empty-text { font-size: 12px; letter-spacing: 0.5px; }
+
+  /* STATS BAR */
+  .stats-bar {
+    padding: 12px 32px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .stat {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .stat span { color: var(--text); font-weight: 600; }
+
+  /* MAIN */
+  main {
+    padding: 32px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* DATE SEPARATOR */
+  .date-group { margin-bottom: 40px; }
+
+  .date-label {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px;
+    font-weight: 300;
+    font-style: italic;
+    color: var(--text);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .date-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .date-count {
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  /* GRID */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+  }
+
+  /* CARD */
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+    position: relative;
+  }
+
+  .card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+  }
+
+  .card-thumb {
+    width: 100%;
+    aspect-ratio: 9/16;
+    object-fit: cover;
+    display: block;
+    background: var(--bg);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card-thumb video { width: 100%; height: 100%; object-fit: cover; }
+  .card-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+  .thumb-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f0ebe4, #e8e0d5);
+    gap: 8px;
+  }
+
+  .thumb-placeholder .play-icon { font-size: 32px; opacity: 0.3; }
+
+  .thumb-placeholder .reel-num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 300;
+    color: var(--muted);
+    opacity: 0.5;
+  }
+
+  /* MODEL TAG */
+  .model-tag {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(26,22,18,0.85);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 1px;
+    backdrop-filter: blur(4px);
+  }
+
+  /* TIME TAG */
+  .time-tag {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(201,169,110,0.9);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    padding: 3px 8px;
+    border-radius: 1px;
+    backdrop-filter: blur(4px);
+  }
+
+  /* CARD INFO */
+  .card-info {
+    padding: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .card-reel {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--accent-dark);
+    margin-bottom: 5px;
+  }
+
+  .card-caption {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--text);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* UPLOAD MODAL */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(26,22,18,0.7);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    width: 480px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    font-weight: 300;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+    color: var(--muted);
+    line-height: 1;
+  }
+
+  .modal-body { padding: 24px; }
+
+  .form-group { margin-bottom: 16px; }
+
+  .form-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    font-family: 'Jost', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    border-radius: 2px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--accent); }
+  .form-textarea { resize: vertical; min-height: 80px; }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  /* FILE DROP */
+  .file-drop {
+    border: 2px dashed var(--border);
+    border-radius: 2px;
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+
+  .file-drop:hover, .file-drop.dragover {
+    border-color: var(--accent);
+    background: rgba(201,169,110,0.05);
+  }
+
+  .file-drop input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .file-drop-icon { font-size: 28px; margin-bottom: 8px; }
+
+  .file-drop-text {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  }
+
+  .file-preview {
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--accent-dark);
+    font-weight: 600;
+  }
+
+  /* UPLOAD PROGRESS */
+  .upload-progress-wrap {
+    margin-top: 10px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    display: none;
+  }
+
+  .upload-progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 4px;
+    transition: width 0.2s;
+    width: 0%;
+  }
+
+  .modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+
+  .btn-cancel {
+    background: none;
+    border: 1px solid var(--border);
+    padding: 8px 20px;
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+
+  .btn-cancel:hover { border-color: var(--text); color: var(--text); }
+
+  .btn-save {
+    background: var(--text);
+    border: none;
+    padding: 8px 24px;
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: #fff;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background 0.2s;
+  }
+
+  .btn-save:hover { background: var(--accent-dark); }
+  .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--muted);
+  }
+
+  .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.3; }
+
+  .empty-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 24px;
+    font-weight: 300;
+    font-style: italic;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+
+  .empty-text { font-size: 13px; letter-spacing: 0.5px; }
+
+  /* LIGHTBOX */
+  .lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(5,4,3,0.97);
+    z-index: 300;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    isolation: isolate;
+  }
+
+  .lightbox.open { display: flex; }
+
+  .lightbox-inner {
+    display: flex;
+    gap: 24px;
+    max-width: 900px;
+    width: 100%;
+    max-height: 90vh;
+  }
+
+  .lightbox-media {
+    flex-shrink: 0;
+    width: 320px;
+    aspect-ratio: 9/16;
+    background: #000;
+    border-radius: 2px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 1;
+  }
+
+  .lightbox-media video, .lightbox-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .lightbox-info {
+    flex: 1;
+    color: #fff;
+    padding: 8px 0;
+    overflow-y: auto;
+  }
+
+  .lb-model {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .lb-date {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 300;
+    font-style: italic;
+    margin-bottom: 4px;
+  }
+
+  .lb-time {
+    font-size: 13px;
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 20px;
+    letter-spacing: 0.5px;
+  }
+
+  .lb-reel {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+
+  .lb-caption {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+    font-weight: 300;
+    line-height: 1.6;
+    color: rgba(255,255,255,0.9);
+  }
+
+  .lb-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.6);
+    font-size: 24px;
+    cursor: pointer;
+    transition: color 0.2s;
+  }
+
+  .lb-close:hover { color: #fff; }
+
+  .lb-delete {
+    margin-top: 24px;
+    background: none;
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 8px 16px;
+    font-family: 'Jost', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.4);
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+
+  .lb-delete:hover { border-color: #ff6b6b; color: #ff6b6b; }
+
+  .lb-edit {
+    margin-top: 24px;
+    background: none;
+    border: 1px solid rgba(255,255,255,0.15);
+    padding: 8px 16px;
+    font-family: 'Jost', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.4);
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+
+  .lb-edit:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* NO RESULTS */
+  .no-results {
+    text-align: center;
+    padding: 60px;
+    color: var(--muted);
+    font-style: italic;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px;
+  }
+
+  /* ── LOGIN SCREEN ── */
+  #loginScreen {
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .login-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 48px 40px 40px;
+    width: 400px;
+    max-width: 95vw;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.08);
+  }
+
+  .login-logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 30px;
+    font-weight: 300;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    text-align: center;
+  }
+
+  .login-logo span { color: var(--accent); font-style: italic; }
+
+  .login-tagline {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-align: center;
+    margin-bottom: 36px;
+  }
+
+  .login-label {
+    display: block;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .login-input {
+    width: 100%;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    padding: 11px 14px;
+    font-family: 'Jost', sans-serif;
+    font-size: 13px;
+    color: var(--text);
+    border-radius: 2px;
+    outline: none;
+    margin-bottom: 16px;
+    transition: border-color 0.2s;
+  }
+
+  .login-input:focus { border-color: var(--accent); }
+
+  .login-btn {
+    width: 100%;
+    background: var(--text);
+    color: #fff;
+    border: none;
+    padding: 13px;
+    font-family: 'Jost', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    margin-top: 4px;
+    transition: background 0.2s;
+  }
+
+  .login-btn:hover { background: var(--accent-dark); }
+
+  .login-error {
+    color: #c0392b;
+    font-size: 12px;
+    text-align: center;
+    margin-top: 12px;
+    display: none;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── USER BADGE in header ── */
+  .user-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    background: var(--card-bg);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .user-badge:hover { border-color: var(--accent); color: var(--accent-dark); }
+
+  .user-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .user-dot.viewer { background: var(--muted); }
+
+  /* ── REQUEST EDIT BANNER ── */
+  #requestEditBanner {
+    background: linear-gradient(135deg, #faf7f4, #f5f0eb);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    display: none;
+  }
+
+  .request-edit-text {
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+
+  .request-edit-text strong { color: var(--text); }
+
+  .request-edit-btn {
+    background: none;
+    border: 1px solid var(--accent);
+    color: var(--accent-dark);
+    padding: 6px 16px;
+    font-family: 'Jost', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .request-edit-btn:hover { background: var(--accent); color: #fff; }
+  .request-edit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ── ADMIN PANEL ── */
+  #adminPanel {
+    position: fixed;
+    inset: 0;
+    background: rgba(26,22,18,0.6);
+    z-index: 400;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+  }
+
+  #adminPanel.open { display: flex; }
+
+  .admin-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    width: 500px;
+    max-width: 95vw;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  .admin-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 1;
+  }
+
+  .admin-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 20px;
+    font-weight: 300;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .admin-section {
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .admin-section-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .user-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .user-row:last-child { border-bottom: none; }
+
+  .user-row-name {
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .user-row-role {
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 1px;
+    font-weight: 600;
+  }
+
+  .role-admin { background: var(--text); color: #fff; }
+  .role-viewer { background: var(--border); color: var(--muted); }
+  .role-editor { background: var(--accent); color: #fff; }
+
+  /* ── EDIT REQUEST NOTIFICATION ── */
+  #editRequestNotif {
+    position: fixed;
+    top: 80px;
+    right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 16px 20px;
+    z-index: 450;
+    max-width: 320px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+    display: none;
+    animation: slideIn 0.3s ease;
+  }
+
+  @keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+
+  .notif-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--accent-dark);
+    margin-bottom: 6px;
+  }
+
+  .notif-msg {
+    font-size: 13px;
+    color: var(--text);
+    margin-bottom: 14px;
+    line-height: 1.5;
+  }
+
+  .notif-actions { display: flex; gap: 8px; }
+
+  .notif-approve {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 7px 16px;
+    font-family: 'Jost', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background 0.2s;
+  }
+
+  .notif-approve:hover { background: var(--accent-dark); }
+
+  .notif-deny {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 7px 16px;
+    font-family: 'Jost', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+
+  .notif-deny:hover { border-color: #c0392b; color: #c0392b; }
+
+  /* CONNECTION STATUS */
+  .conn-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+  }
+
+  .conn-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #aaa;
+  }
+
+  .conn-dot.online { background: #4caf50; }
+  .conn-dot.offline { background: #e05; }
+
+  /* ── ANALYTICS ── */
+  .analytics-wrap {
+    padding: 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .analytics-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 28px;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .analytics-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 300;
+    font-style: italic;
+    margin-bottom: 4px;
+  }
+
+  .analytics-subtitle {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+
+  .analytics-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 36px;
+  }
+
+  .analytics-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 20px;
+    text-align: center;
+    transition: box-shadow 0.2s;
+  }
+
+  .analytics-card:hover {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.07);
+  }
+
+  .analytics-card-icon {
+    font-size: 22px;
+    margin-bottom: 10px;
+    opacity: 0.8;
+  }
+
+  .analytics-card-value {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--text);
+    margin-bottom: 4px;
+    line-height: 1;
+  }
+
+  .analytics-card-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .analytics-section-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .model-breakdown {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .model-stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 18px 20px;
+  }
+
+  .model-stat-name {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--accent-dark);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .model-stat-post-count {
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 500;
+    letter-spacing: 1px;
+  }
+
+  .model-stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+
+  .model-stat-row:last-child { border-bottom: none; }
+
+  .model-stat-metric {
+    color: var(--muted);
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  }
+
+  .model-stat-val {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--text);
+  }
+
+  .model-stat-bar-wrap {
+    width: 100%;
+    height: 3px;
+    background: var(--border);
+    border-radius: 3px;
+    margin-top: 12px;
+    overflow: hidden;
+  }
+
+  .model-stat-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    transition: width 0.6s ease;
+  }
+
+  /* ANALYTICS TABLE */
+  .analytics-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .analytics-table th {
+    padding: 11px 14px;
+    text-align: left;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  .analytics-table td {
+    padding: 13px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+    vertical-align: middle;
+  }
+
+  .analytics-table tr:last-child td { border-bottom: none; }
+  .analytics-table tr:hover td { background: rgba(201,169,110,0.04); }
+
+  .stat-views { color: var(--text); font-family: 'Cormorant Garamond', serif; font-size: 16px; }
+  .stat-likes { color: #e07; font-family: 'Cormorant Garamond', serif; font-size: 16px; }
+  .stat-hashtag { color: var(--accent-dark); font-family: 'Cormorant Garamond', serif; font-size: 16px; }
+
+  .like-rate-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 1px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+  }
+
+  .like-rate-high { background: rgba(0,180,0,0.1); color: #2a7a2a; }
+  .like-rate-mid  { background: rgba(201,169,110,0.15); color: var(--accent-dark); }
+  .like-rate-low  { background: rgba(200,0,0,0.08); color: #a00; }
+
+  .stat-del-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: 2px;
+    transition: color 0.2s;
+  }
+  .stat-del-btn:hover { color: #e05; }
+
+  @media (max-width: 600px) {
+    header { padding: 14px 16px; }
+    main { padding: 16px; }
+    .grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .lightbox-inner { flex-direction: column; }
+    .lightbox-media { width: 100%; aspect-ratio: 9/16; max-height: 50vh; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">Feed <span>Wall</span></div>
+    <div class="login-tagline">Content Tracker</div>
+    <label class="login-label">Username</label>
+    <input type="text" class="login-input" id="loginUser" placeholder="Enter username" autocomplete="username">
+    <label class="login-label">Password</label>
+    <input type="password" class="login-input" id="loginPass" placeholder="Enter password" autocomplete="current-password">
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <div class="login-error" id="loginError">Incorrect username or password.</div>
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div id="adminPanel">
+  <div class="admin-box">
+    <div class="admin-header">
+      <div class="admin-title">Admin Panel</div>
+      <button class="modal-close" onclick="closeAdminPanel()">×</button>
+    </div>
+
+    <!-- Edit Requests -->
+    <div class="admin-section">
+      <div class="admin-section-title">⏳ Pending Edit Requests</div>
+      <div id="pendingRequestsList">
+        <div style="font-size:13px;color:var(--muted);font-style:italic;">No pending requests</div>
+      </div>
+    </div>
+
+    <!-- Users List -->
+    <div class="admin-section">
+      <div class="admin-section-title">👥 Users</div>
+      <div id="usersList"></div>
+    </div>
+
+    <!-- Promote/Demote -->
+    <div class="admin-section">
+      <div class="admin-section-title">🔑 Grant / Revoke Edit Access</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Viewers with edit access can upload, edit, and delete posts.</div>
+      <div id="grantRevokeList"></div>
+    </div>
+
+    <div style="padding:16px 24px;">
+      <button class="btn-cancel" onclick="closeAdminPanel()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT REQUEST NOTIFICATION (for admin) -->
+<div id="editRequestNotif">
+  <div class="notif-title">✏️ Edit Request</div>
+  <div class="notif-msg" id="notifMsg"></div>
+  <div class="notif-actions">
+    <button class="notif-approve" id="notifApprove">Approve</button>
+    <button class="notif-deny" id="notifDeny">Deny</button>
+  </div>
+</div>
+
+<!-- SETUP SCREEN -->
+<div id="setupScreen">
+  <div class="setup-box">
+    <div class="setup-logo">Feed <span>Wall</span></div>
+    <div class="setup-sub">Supabase Connection Setup</div>
+
+    <label class="setup-label">Supabase Project URL</label>
+    <input type="text" class="setup-input" id="setupUrl" placeholder="https://xxxx.supabase.co">
+
+    <label class="setup-label">Supabase Anon Key</label>
+    <input type="text" class="setup-input" id="setupKey" placeholder="eyJhbGciOiJIUzI1NiIsIn...">
+
+    <button class="setup-btn" onclick="connectSupabase()">Connect & Continue</button>
+    <div class="setup-error" id="setupError"></div>
+
+    <div class="setup-note">
+      Find these in your Supabase project → <strong>Project Settings → API</strong>.<br>
+      Your credentials are saved locally in your browser only.
+    </div>
+  </div>
+</div>
+
+<!-- LOADING OVERLAY -->
+<div id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loadingText">Loading...</div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- MAIN APP (hidden until connected) -->
+<div id="app" style="display:none;">
+
+<header>
+  <div class="logo">Feed <span>Wall</span></div>
+  <div class="header-controls">
+    <div class="filter-wrap">
+      <select id="modelFilter" onchange="filterPosts()">
+        <option value="all">All Models</option>
+      </select>
+    </div>
+    <button class="upload-btn" id="uploadBtn" onclick="openModal()" style="display:none;">+ Upload</button>
+    <button class="upload-btn" id="modelsBtn" style="background:var(--accent-dark);display:none;" onclick="openModelsModal()">👤 Models</button>
+    <button class="upload-btn" id="adminBtn" style="background:#2c2c2c;display:none;" onclick="openAdminPanel()">⚙️ Admin</button>
+    <div class="user-badge" onclick="handleUserBadgeClick()" id="userBadge">
+      <div class="user-dot" id="userDot"></div>
+      <span id="userBadgeLabel">—</span>
+    </div>
+  </div>
+</header>
+
+<div class="tab-nav">
+  <button class="tab-btn active" id="tabFeedBtn" onclick="switchTab('feed')">🎬 Feed Wall</button>
+  <button class="tab-btn" id="tabTrackerBtn" onclick="switchTab('tracker')">📋 Daily Tracker</button>
+  <button class="tab-btn" id="tabAnalyticsBtn" onclick="switchTab('analytics')">📊 Analytics</button>
+</div>
+
+<!-- REQUEST EDIT BANNER (for viewers) -->
+<div id="requestEditBanner" style="display:none;">
+  <div class="request-edit-text">
+    You are viewing as <strong id="viewerNameLabel">—</strong>. You have <strong>view-only</strong> access.
+  </div>
+  <button class="request-edit-btn" id="requestEditBtn" onclick="requestEditAccess()">✏️ Request Edit Access</button>
+</div>
+
+<div class="stats-bar" id="statsBar">
+  <div class="stat">Total Posts: <span id="totalCount">0</span></div>
+  <div class="stat">Showing: <span id="showingCount">0</span></div>
+  <div class="stat">Models: <span id="modelCount">7</span></div>
+</div>
+
+<!-- FEED TAB -->
+<div id="tab-feed" class="tab-content active">
+  <main id="feedMain">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🎬</div>
+      <div class="empty-title">Your feed wall is empty</div>
+      <div class="empty-text">Upload your first post to get started</div>
+    </div>
+  </main>
+</div>
+
+<!-- TRACKER TAB -->
+<div id="tab-tracker" class="tab-content">
+  <div class="tracker-wrap">
+    <div class="tracker-header">
+      <div class="tracker-title">Today's Schedule</div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div class="tracker-date" id="trackerDateLabel"></div>
+        <button onclick="renderTracker()" style="background:none;border:1px solid var(--border);padding:6px 14px;font-family:'Jost',sans-serif;font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);cursor:pointer;border-radius:2px;transition:all 0.2s;display:flex;align-items:center;gap:6px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent-dark)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+          🔄 Refresh
+        </button>
+      </div>
+    </div>
+    <div class="tracker-progress">
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+      </div>
+      <div class="progress-text" id="progressText">0 / 0 posted</div>
+    </div>
+    <table class="tracker-table">
+      <thead>
+        <tr>
+          <th>Done</th>
+          <th>Time</th>
+          <th>Model</th>
+          <th>Reel #</th>
+          <th>Caption</th>
+        </tr>
+      </thead>
+      <tbody id="trackerBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ANALYTICS TAB -->
+<div id="tab-analytics" class="tab-content">
+  <div class="analytics-wrap">
+
+    <!-- Header -->
+    <div class="analytics-header">
+      <div>
+        <div class="analytics-title">Analytics</div>
+        <div class="analytics-subtitle">Fansly FYP Reels · Views, Likes & Hashtag Reach</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <div class="filter-wrap">
+          <select id="analyticsModelFilter" onchange="renderAnalytics()" style="font-size:11px;">
+            <option value="all">All Models</option>
+          </select>
+        </div>
+        <button class="upload-btn" id="addStatsBtn" onclick="openStatsModal()">+ Add Stats</button>
+      </div>
+    </div>
+
+    <!-- Overview Cards -->
+    <div class="analytics-cards" id="analyticsCards">
+      <div class="analytics-card">
+        <div class="analytics-card-icon">👁️</div>
+        <div class="analytics-card-value" id="statTotalViews">0</div>
+        <div class="analytics-card-label">Total Views</div>
+      </div>
+      <div class="analytics-card">
+        <div class="analytics-card-icon">❤️</div>
+        <div class="analytics-card-value" id="statTotalLikes">0</div>
+        <div class="analytics-card-label">Total Likes</div>
+      </div>
+      <div class="analytics-card">
+        <div class="analytics-card-icon">#️⃣</div>
+        <div class="analytics-card-value" id="statTotalHashtag">0</div>
+        <div class="analytics-card-label">Hashtag Reach</div>
+      </div>
+      <div class="analytics-card">
+        <div class="analytics-card-icon">🏆</div>
+        <div class="analytics-card-value" id="statTopModel">—</div>
+        <div class="analytics-card-label">Top Model (Views)</div>
+      </div>
+      <div class="analytics-card">
+        <div class="analytics-card-icon">🔥</div>
+        <div class="analytics-card-value" id="statBestReel">—</div>
+        <div class="analytics-card-label">Best Performing Reel</div>
+      </div>
+      <div class="analytics-card">
+        <div class="analytics-card-icon">📈</div>
+        <div class="analytics-card-value" id="statAvgViews">0</div>
+        <div class="analytics-card-label">Avg Views / Post</div>
+      </div>
+    </div>
+
+    <!-- Per-Model Breakdown -->
+    <div class="analytics-section-title">Performance by Model</div>
+    <div class="model-breakdown" id="modelBreakdown"></div>
+
+    <!-- Posts Stats Table -->
+    <div class="analytics-section-title" style="margin-top:32px;">All Tracked Posts</div>
+    <div id="analyticsEmpty" style="display:none;text-align:center;padding:48px;color:var(--muted);font-family:'Cormorant Garamond',serif;font-size:18px;font-style:italic;">
+      No stats logged yet — click "+ Add Stats" to get started
+    </div>
+    <table class="analytics-table" id="analyticsTable" style="display:none;">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Model</th>
+          <th>Reel #</th>
+          <th>👁️ Views</th>
+          <th>❤️ Likes</th>
+          <th>#️⃣ Hashtag Reach</th>
+          <th>Like Rate</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="analyticsBody"></tbody>
+    </table>
+
+  </div>
+</div>
+
+<!-- STATS MODAL -->
+<div class="modal-overlay" id="statsModalOverlay">
+  <div class="modal" style="width:500px;">
+    <div class="modal-header">
+      <div class="modal-title">Log Post Stats</div>
+      <button class="modal-close" onclick="closeStatsModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Link to Post (optional — pick from your posts)</label>
+        <select class="form-select" id="statsPostSelect" onchange="autofillStatsFromPost()">
+          <option value="">— Select a post —</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Model</label>
+          <select class="form-select" id="statsModel"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Reel #</label>
+          <input type="number" class="form-input" id="statsReel" placeholder="e.g. 506">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date Posted</label>
+          <input type="date" class="form-input" id="statsDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Platform</label>
+          <select class="form-select" id="statsPlatform">
+            <option value="Fansly FYP">Fansly FYP</option>
+            <option value="Fansly Reels">Fansly Reels</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:2px;padding:16px;margin-bottom:16px;">
+        <div style="font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;">Metrics</div>
+        <div class="form-row">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">👁️ Views</label>
+            <input type="number" class="form-input" id="statsViews" placeholder="0" min="0">
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">❤️ Likes</label>
+            <input type="number" class="form-input" id="statsLikes" placeholder="0" min="0">
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:12px;margin-bottom:0;">
+          <label class="form-label">#️⃣ Hashtag Reach</label>
+          <input type="number" class="form-input" id="statsHashtag" placeholder="0" min="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes (optional)</label>
+        <textarea class="form-textarea" id="statsNotes" placeholder="e.g. viral spike after 6 hours..." style="min-height:60px;"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeStatsModal()">Cancel</button>
+      <button class="btn-save" id="saveStatsBtn" onclick="saveStats()">Save Stats</button>
+    </div>
+  </div>
+</div>
+
+<!-- UPLOAD MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add Post</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Media (Video or Image)</label>
+        <div class="file-drop" id="fileDrop">
+          <input type="file" id="fileInput" accept="video/*,image/*" onchange="handleFile(this)">
+          <div class="file-drop-icon">📁</div>
+          <div class="file-drop-text">Drop file here or click to browse</div>
+          <div class="file-preview" id="filePreview"></div>
+        </div>
+        <div class="upload-progress-wrap" id="uploadProgressWrap">
+          <div class="upload-progress-fill" id="uploadProgressFill"></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Model</label>
+          <select class="form-select" id="postModel"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Reel #</label>
+          <input type="number" class="form-input" id="postReel" placeholder="e.g. 506">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Date</label>
+          <input type="date" class="form-input" id="postDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Time</label>
+          <input type="time" class="form-input" id="postTime">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Caption</label>
+        <textarea class="form-textarea" id="postCaption" placeholder="Enter caption..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" id="savePostBtn" onclick="savePost()">Save Post</button>
+    </div>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+  <button class="lb-close" onclick="closeLightbox()">×</button>
+  <div class="lightbox-inner">
+    <div class="lightbox-media" id="lbMedia"></div>
+    <div class="lightbox-info">
+      <div class="lb-model" id="lbModel"></div>
+      <div class="lb-date" id="lbDate"></div>
+      <div class="lb-time" id="lbTime"></div>
+      <div class="lb-reel" id="lbReel"></div>
+      <div class="lb-caption" id="lbCaption"></div>
+      <div style="display:flex;gap:10px;margin-top:24px;">
+        <button class="lb-edit" onclick="openEditMode()">✏️ Edit</button>
+        <button class="lb-delete" id="lbDelete" onclick="deletePost()">🗑 Delete</button>
+      </div>
+
+      <!-- EDIT FORM inside lightbox -->
+      <div id="editForm" style="display:none;margin-top:20px;">
+        <div style="height:1px;background:rgba(255,255,255,0.1);margin-bottom:20px;"></div>
+        <div style="margin-bottom:12px;">
+          <label style="display:block;font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:6px;">Model</label>
+          <select id="editModel" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);padding:8px 12px;font-family:'Jost',sans-serif;font-size:13px;color:#fff;border-radius:2px;outline:none;appearance:none;"></select>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+          <div>
+            <label style="display:block;font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:6px;">Reel #</label>
+            <input type="number" id="editReel" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);padding:8px 12px;font-family:'Jost',sans-serif;font-size:13px;color:#fff;border-radius:2px;outline:none;">
+          </div>
+          <div>
+            <label style="display:block;font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:6px;">Time</label>
+            <input type="time" id="editTime" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);padding:8px 12px;font-family:'Jost',sans-serif;font-size:13px;color:#fff;border-radius:2px;outline:none;">
+          </div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="display:block;font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:6px;">Date</label>
+          <input type="date" id="editDate" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);padding:8px 12px;font-family:'Jost',sans-serif;font-size:13px;color:#fff;border-radius:2px;outline:none;">
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="display:block;font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:6px;">Caption</label>
+          <textarea id="editCaption" rows="4" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);padding:8px 12px;font-family:'Cormorant Garamond',serif;font-size:15px;color:#fff;border-radius:2px;outline:none;resize:vertical;"></textarea>
+        </div>
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:10px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:6px;">Replace Media</label>
+          <div style="border:2px dashed rgba(255,255,255,0.15);border-radius:2px;padding:16px;text-align:center;cursor:pointer;position:relative;transition:border-color 0.2s;" id="editFileDrop">
+            <input type="file" id="editFileInput" accept="video/*,image/*" onchange="handleEditFile(this)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
+            <div style="font-size:16px;margin-bottom:4px;">📁</div>
+            <div style="font-size:11px;color:rgba(255,255,255,0.4);font-weight:500;">Drop new video/image or click to browse</div>
+            <div id="editFilePreview" style="margin-top:6px;font-size:11px;color:var(--accent);font-weight:600;"></div>
+          </div>
+          <div class="upload-progress-wrap" id="editUploadProgressWrap" style="margin-top:8px;">
+            <div class="upload-progress-fill" id="editUploadProgressFill"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button id="saveEditBtn" onclick="saveEdit()" style="background:var(--accent);border:none;padding:8px 20px;font-family:'Jost',sans-serif;font-size:11px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:#fff;cursor:pointer;border-radius:2px;">Save Changes</button>
+          <button onclick="cancelEdit()" style="background:none;border:1px solid rgba(255,255,255,0.15);padding:8px 20px;font-family:'Jost',sans-serif;font-size:11px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.4);cursor:pointer;border-radius:2px;">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end #app -->
+
+<!-- MODELS MODAL -->
+<div class="modal-overlay" id="modelsModalOverlay">
+  <div class="modal" style="width:440px;">
+    <div class="modal-header">
+      <div class="modal-title">Manage Models</div>
+      <button class="modal-close" onclick="closeModelsModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div id="modelsList" style="margin-bottom:16px;"></div>
+      <div style="height:1px;background:var(--border);margin-bottom:16px;"></div>
+      <div class="form-group">
+        <label class="form-label">Add New Model</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" class="form-input" id="newModelName" placeholder="Enter model name..." style="flex:1;">
+          <button class="btn-save" onclick="addModel()" style="white-space:nowrap;">+ Add</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModelsModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// USER ACCOUNTS — Edit this section to manage users
+// ============================================================
+const USERS = {
+  // ── HOW TO ADD/EDIT USERS ──────────────────────────────────
+  // 'username': { password: 'yourpass', role: 'admin'|'editor'|'viewer', displayName: 'Their Name' }
+  // Roles:
+  //   admin  → full access (upload, edit, delete, manage models, approve requests)
+  //   editor → can upload, edit, delete (granted by admin)
+  //   viewer → read-only, can request edit access
+  // ──────────────────────────────────────────────────────────
+
+  // ── ADMIN (you) ──
+  'admin': {
+    password: 'feedwall2024',   // ← change this!
+    role: 'admin',
+    displayName: 'Admin'
+  },
+
+  // ── VIEWERS (your team / trusted people) ──
+  // Rename these or add more as needed
+  'viewer1': {
+    password: 'viewer1pass',
+    role: 'viewer',
+    displayName: 'Viewer 1'
+  },
+  'viewer2': {
+    password: 'viewer2pass',
+    role: 'viewer',
+    displayName: 'Viewer 2'
+  },
+  'viewer3': {
+    password: 'viewer3pass',
+    role: 'viewer',
+    displayName: 'Viewer 3'
+  }
+
+  // ── TO ADD MORE, copy this block above the closing } ──
+  // ,'newuser': {
+  //   password: 'theirpassword',
+  //   role: 'viewer',
+  //   displayName: 'Their Name'
+  // }
+};
+
+// ============================================================
+// LOGIN STATE
+// ============================================================
+let currentUser = null; // { username, role, displayName }
+// Roles: 'admin' = full access | 'editor' = upload/edit/delete | 'viewer' = read only
+
+// In-memory edit requests (resets on page refresh — good for simple use)
+let editRequests = {}; // { username: 'pending' | 'approved' | 'denied' }
+
+function doLogin() {
+  const username = document.getElementById('loginUser').value.trim().toLowerCase();
+  const password = document.getElementById('loginPass').value;
+  const errEl = document.getElementById('loginError');
+
+  const user = USERS[username];
+  if (!user || user.password !== password) {
+    errEl.style.display = 'block';
+    document.getElementById('loginPass').value = '';
+    return;
+  }
+
+  errEl.style.display = 'none';
+  currentUser = { username, role: user.role, displayName: user.displayName };
+  sessionStorage.setItem('feedwall-user', JSON.stringify(currentUser));
+
+  document.getElementById('loginScreen').style.display = 'none';
+  applyRoleUI();
+  checkAutoConnect();
+}
+
+function tryAutoLogin() {
+  const saved = sessionStorage.getItem('feedwall-user');
+  if (saved) {
+    try {
+      currentUser = JSON.parse(saved);
+      // Validate user still exists and role matches
+      const user = USERS[currentUser.username];
+      if (user) {
+        currentUser.role = user.role; // always use latest role from USERS
+        currentUser.displayName = user.displayName;
+        document.getElementById('loginScreen').style.display = 'none';
+        applyRoleUI();
+        return true;
+      }
+    } catch(e) {}
+  }
+  return false;
+}
+
+function applyRoleUI() {
+  const role = currentUser.role;
+  const isAdmin = role === 'admin';
+  const canEdit = role === 'admin' || role === 'editor';
+
+  // Header buttons
+  document.getElementById('uploadBtn').style.display = canEdit ? 'inline-block' : 'none';
+  document.getElementById('modelsBtn').style.display = canEdit ? 'inline-block' : 'none';
+  document.getElementById('adminBtn').style.display = isAdmin ? 'inline-block' : 'none';
+  document.getElementById('addStatsBtn').style.display = canEdit ? 'inline-block' : 'none';
+
+  // User badge
+  document.getElementById('userBadgeLabel').textContent = currentUser.displayName;
+  const dot = document.getElementById('userDot');
+  dot.className = 'user-dot' + (isAdmin ? '' : canEdit ? '' : ' viewer');
+
+  // Viewer banner
+  if (!canEdit) {
+    document.getElementById('requestEditBanner').style.display = 'flex';
+    document.getElementById('viewerNameLabel').textContent = currentUser.displayName;
+  }
+}
+
+function handleUserBadgeClick() {
+  if (currentUser.role === 'admin') {
+    openAdminPanel();
+  } else {
+    if (confirm(`Logged in as ${currentUser.displayName}.\n\nSign out?`)) {
+      sessionStorage.removeItem('feedwall-user');
+      location.reload();
+    }
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('feedwall-user');
+  location.reload();
+}
+
+// ============================================================
+// EDIT REQUEST SYSTEM
+// ============================================================
+function requestEditAccess() {
+  const btn = document.getElementById('requestEditBtn');
+  const existing = editRequests[currentUser.username];
+
+  if (existing === 'pending') {
+    showToast('Request already sent. Waiting for admin approval.');
+    return;
+  }
+
+  editRequests[currentUser.username] = 'pending';
+  btn.textContent = '⏳ Request Sent...';
+  btn.disabled = true;
+  showToast('Edit request sent to admin!', 'success');
+
+  // Show notification to admin if they're on the same session (unlikely but useful)
+  // In real use, admin sees it when they open Admin Panel
+  showEditRequestNotif(currentUser.displayName, currentUser.username);
+}
+
+function showEditRequestNotif(displayName, username) {
+  // Only show to admin
+  if (!currentUser || currentUser.role !== 'admin') return;
+  const notif = document.getElementById('editRequestNotif');
+  document.getElementById('notifMsg').textContent = `${displayName} is requesting edit access to the Feed Wall.`;
+  notif.style.display = 'block';
+
+  document.getElementById('notifApprove').onclick = () => {
+    grantEditAccess(username);
+    notif.style.display = 'none';
+    showToast(`${displayName} granted edit access`, 'success');
+    renderAdminPanel();
+  };
+
+  document.getElementById('notifDeny').onclick = () => {
+    editRequests[username] = 'denied';
+    notif.style.display = 'none';
+    showToast(`${displayName}'s request denied`);
+    renderAdminPanel();
+  };
+}
+
+function grantEditAccess(username) {
+  USERS[username].role = 'editor';
+  editRequests[username] = 'approved';
+  renderAdminPanel();
+}
+
+function revokeEditAccess(username) {
+  if (USERS[username].role === 'admin') return;
+  USERS[username].role = 'viewer';
+  delete editRequests[username];
+  renderAdminPanel();
+}
+
+// ============================================================
+// ADMIN PANEL
+// ============================================================
+function openAdminPanel() {
+  renderAdminPanel();
+  document.getElementById('adminPanel').classList.add('open');
+}
+
+function closeAdminPanel() {
+  document.getElementById('adminPanel').classList.remove('open');
+}
+
+function renderAdminPanel() {
+  // Pending requests
+  const pendingList = document.getElementById('pendingRequestsList');
+  const pending = Object.entries(editRequests).filter(([,v]) => v === 'pending');
+  if (pending.length === 0) {
+    pendingList.innerHTML = '<div style="font-size:13px;color:var(--muted);font-style:italic;">No pending requests</div>';
+  } else {
+    pendingList.innerHTML = pending.map(([username]) => {
+      const u = USERS[username];
+      return `<div class="user-row">
+        <div>
+          <div class="user-row-name">${u.displayName}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">@${username}</div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button onclick="grantEditAccess('${username}');showToast('${u.displayName} approved','success');" style="background:var(--accent);color:#fff;border:none;padding:6px 14px;font-family:'Jost',sans-serif;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:2px;">Approve</button>
+          <button onclick="editRequests['${username}']='denied';renderAdminPanel();showToast('Request denied');" style="background:none;border:1px solid var(--border);color:var(--muted);padding:6px 14px;font-family:'Jost',sans-serif;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:2px;">Deny</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // Users list
+  const usersList = document.getElementById('usersList');
+  usersList.innerHTML = Object.entries(USERS).map(([username, u]) => `
+    <div class="user-row">
+      <div>
+        <div class="user-row-name">${u.displayName}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">@${username}</div>
+      </div>
+      <span class="user-row-role role-${u.role}">${u.role}</span>
+    </div>
+  `).join('');
+
+  // Grant/Revoke list (non-admin users only)
+  const grantList = document.getElementById('grantRevokeList');
+  const nonAdmins = Object.entries(USERS).filter(([,u]) => u.role !== 'admin');
+  grantList.innerHTML = nonAdmins.map(([username, u]) => `
+    <div class="user-row">
+      <div>
+        <div class="user-row-name">${u.displayName}</div>
+        <span class="user-row-role role-${u.role}" style="margin-top:4px;display:inline-block;">${u.role}</span>
+      </div>
+      ${u.role === 'editor'
+        ? `<button onclick="revokeEditAccess('${username}')" style="background:none;border:1px solid #e05;color:#e05;padding:6px 14px;font-family:'Jost',sans-serif;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:2px;">Revoke</button>`
+        : `<button onclick="grantEditAccess('${username}');showToast('${u.displayName} granted edit access','success');" style="background:var(--accent);color:#fff;border:none;padding:6px 14px;font-family:'Jost',sans-serif;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;border-radius:2px;">Grant Edit</button>`
+      }
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// SUPABASE SETUP
+// ============================================================
+let sbClient = null;
+const STORAGE_BUCKET = 'feedwall-media';
+const TABLE_POSTS = 'posts';
+const TABLE_MODELS = 'models';
+const TABLE_CHECKED = 'tracker_checked';
+const TABLE_STATS = 'post_stats';
+
+async function connectSupabase() {
+  const url = document.getElementById('setupUrl').value.trim();
+  const key = document.getElementById('setupKey').value.trim();
+  const errEl = document.getElementById('setupError');
+  errEl.style.display = 'none';
+
+  if (!url || !key) {
+    errEl.textContent = 'Please fill in both fields.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  try {
+    sbClient = window.supabase.createClient(url, key);
+    // Test connection
+    const { error } = await sbClient.from(TABLE_POSTS).select('id').limit(1);
+    if (error && error.code !== 'PGRST116') throw error;
+
+    // Save credentials
+    localStorage.setItem('feedwall-sb-url', url);
+    localStorage.setItem('feedwall-sb-key', key);
+
+    document.getElementById('setupScreen').style.display = 'none';
+    await initApp();
+  } catch(e) {
+    errEl.textContent = 'Connection failed: ' + (e.message || 'Check your URL and key.');
+    errEl.style.display = 'block';
+  }
+}
+
+async function tryAutoConnect() {
+  const url = localStorage.getItem('feedwall-sb-url');
+  const key = localStorage.getItem('feedwall-sb-key');
+  if (!url || !key) return false;
+
+  try {
+    sbClient = window.supabase.createClient(url, key);
+    const { error } = await sbClient.from(TABLE_POSTS).select('id').limit(1);
+    if (error && error.code !== 'PGRST116') throw error;
+    return true;
+  } catch(e) {
+    return false;
+  }
+}
+
+// ============================================================
+// TOAST & LOADING
+// ============================================================
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = type ? `show ${type}` : 'show';
+  setTimeout(() => t.className = '', 3000);
+}
+
+function showLoading(msg = 'Loading...') {
+  document.getElementById('loadingText').textContent = msg;
+  document.getElementById('loadingOverlay').classList.add('show');
+}
+
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.remove('show');
+}
+
+// ============================================================
+// MODELS
+// ============================================================
+const DEFAULT_MODELS = ['Josie','Emma','Lola','Akasha','Myla','Grace','Mia'];
+let models = [...DEFAULT_MODELS];
+
+async function loadModels() {
+  try {
+    const { data, error } = await sbClient.from(TABLE_MODELS).select('name').order('created_at');
+    if (error) throw error;
+    if (data && data.length > 0) {
+      models = data.map(r => r.name);
+    } else {
+      // Seed defaults
+      await sbClient.from(TABLE_MODELS).insert(DEFAULT_MODELS.map(name => ({ name })));
+      models = [...DEFAULT_MODELS];
+    }
+  } catch(e) {
+    models = [...DEFAULT_MODELS];
+  }
+  updateAllModelSelects();
+}
+
+async function addModel() {
+  const input = document.getElementById('newModelName');
+  const name = input.value.trim();
+  if (!name) return;
+  if (models.find(m => m.toLowerCase() === name.toLowerCase())) {
+    alert('This model already exists!'); return;
+  }
+  try {
+    const { error } = await sbClient.from(TABLE_MODELS).insert({ name });
+    if (error) throw error;
+    models.push(name);
+    updateAllModelSelects();
+    input.value = '';
+    showToast('Model added', 'success');
+  } catch(e) {
+    showToast('Failed to add model', 'error');
+  }
+}
+
+async function removeModel(name) {
+  if (DEFAULT_MODELS.includes(name)) return;
+  if (!confirm('Remove ' + name + '? This will not delete their posts.')) return;
+  try {
+    const { error } = await sbClient.from(TABLE_MODELS).delete().eq('name', name);
+    if (error) throw error;
+    models = models.filter(m => m !== name);
+    updateAllModelSelects();
+    showToast('Model removed');
+  } catch(e) {
+    showToast('Failed to remove model', 'error');
+  }
+}
+
+function updateAllModelSelects() {
+  const selects = ['modelFilter', 'postModel', 'editModel'];
+  selects.forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const current = el.value;
+    if (id === 'modelFilter') {
+      el.innerHTML = '<option value="all">All Models</option>';
+    } else {
+      el.innerHTML = '';
+    }
+    models.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m; opt.textContent = m;
+      el.appendChild(opt);
+    });
+    if (current) el.value = current;
+  });
+  document.getElementById('modelCount').textContent = models.length;
+  renderModelsList();
+}
+
+function renderModelsList() {
+  const list = document.getElementById('modelsList');
+  if (!list) return;
+  if (models.length === 0) {
+    list.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:12px;">No models yet</div>';
+    return;
+  }
+  list.innerHTML = models.map((m) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="width:8px;height:8px;background:var(--accent);border-radius:50%;"></div>
+        <span style="font-size:14px;font-weight:500;">${m}</span>
+      </div>
+      ${DEFAULT_MODELS.includes(m) ?
+        '<span style="font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;">Default</span>' :
+        `<button onclick="removeModel('${m}')" style="background:none;border:none;color:#ff6b6b;cursor:pointer;font-size:18px;line-height:1;">×</button>`
+      }
+    </div>
+  `).join('');
+}
+
+function openModelsModal() {
+  renderModelsList();
+  document.getElementById('modelsModalOverlay').classList.add('open');
+}
+
+function closeModelsModal() {
+  document.getElementById('modelsModalOverlay').classList.remove('open');
+}
+
+// ============================================================
+// POSTS STATE
+// ============================================================
+let posts = [];
+let currentLightboxIndex = null;
+let editFileData = null;
+let newFileData = null;
+let openedFromTracker = false;
+
+// ============================================================
+// LOAD POSTS FROM SUPABASE
+// ============================================================
+async function loadPosts() {
+  showLoading('Loading posts...');
+  try {
+    const { data, error } = await supabase
+      .from(TABLE_POSTS)
+      .select('*')
+      .order('post_date', { ascending: false })
+      .order('post_time', { ascending: true });
+    if (error) throw error;
+
+    posts = (data || []).map(row => ({
+      id: row.id,
+      model: row.model,
+      reel: row.reel,
+      date: row.post_date,
+      time: row.post_time,
+      caption: row.caption,
+      media_url: row.media_url,
+      media_type: row.media_type,
+      thumb_url: row.thumb_url,
+      storage_path: row.storage_path,
+      thumb_path: row.thumb_path,
+    }));
+
+    renderFeed();
+  } catch(e) {
+    showToast('Failed to load posts: ' + e.message, 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+// ============================================================
+// SUPABASE STORAGE UPLOAD
+// ============================================================
+async function uploadFileToStorage(file, onProgress) {
+  const ext = file.name.split('.').pop();
+  const path = `posts/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+
+  // Supabase JS v2 doesn't support upload progress natively,
+  // so we use XMLHttpRequest for progress tracking
+  return new Promise(async (resolve, reject) => {
+    const { data: { session } } = await sbClient.auth.getSession();
+    const sbUrl = localStorage.getItem('feedwall-sb-url');
+    const sbKey = localStorage.getItem('feedwall-sb-key');
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${sbUrl}/storage/v1/object/${STORAGE_BUCKET}/${path}`);
+    xhr.setRequestHeader('Authorization', `Bearer ${sbKey}`);
+    xhr.setRequestHeader('x-upsert', 'true');
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+
+    xhr.onload = () => {
+      if (xhr.status === 200 || xhr.status === 201) {
+        // Get public URL
+        const { data } = sbClient.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+        resolve({ path, url: data.publicUrl });
+      } else {
+        reject(new Error('Upload failed: ' + xhr.statusText));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('Upload network error'));
+    xhr.send(file);
+  });
+}
+
+async function uploadThumbToStorage(dataUrl, baseName) {
+  const blob = await (await fetch(dataUrl)).blob();
+  const path = `thumbs/${baseName}.jpg`;
+  const { error } = await sbClient.storage.from(STORAGE_BUCKET).upload(path, blob, {
+    contentType: 'image/jpeg', upsert: true
+  });
+  if (error) throw error;
+  const { data } = sbClient.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+  return { path, url: data.publicUrl };
+}
+
+// ============================================================
+// SAVE POST
+// ============================================================
+async function savePost() {
+  const model = document.getElementById('postModel').value;
+  const reel = document.getElementById('postReel').value;
+  const date = document.getElementById('postDate').value;
+  const time = document.getElementById('postTime').value;
+  const caption = document.getElementById('postCaption').value;
+
+  if (!date || !model) {
+    alert('Please fill in Model and Date at minimum.');
+    return;
+  }
+
+  const btn = document.getElementById('savePostBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  try {
+    let media_url = null, media_type = null, thumb_url = null;
+    let storage_path = null, thumb_path = null;
+
+    if (newFileData) {
+      showLoading('Uploading media...');
+      const wrap = document.getElementById('uploadProgressWrap');
+      const fill = document.getElementById('uploadProgressFill');
+      wrap.style.display = 'block';
+
+      // Upload main file
+      const uploaded = await uploadFileToStorage(newFileData.file, (pct) => {
+        fill.style.width = pct + '%';
+      });
+      media_url = uploaded.url;
+      storage_path = uploaded.path;
+      media_type = newFileData.file.type || 'video/mp4';
+
+      // Upload thumbnail if video
+      if (newFileData.thumb) {
+        const baseName = uploaded.path.split('/').pop().split('.')[0];
+        const thumbUploaded = await uploadThumbToStorage(newFileData.thumb, baseName);
+        thumb_url = thumbUploaded.url;
+        thumb_path = thumbUploaded.path;
+      }
+
+      wrap.style.display = 'none';
+      hideLoading();
+    }
+
+    const { data, error } = await sbClient.from(TABLE_POSTS).insert({
+      model, reel, post_date: date, post_time: time, caption,
+      media_url, media_type, thumb_url, storage_path, thumb_path
+    }).select().single();
+
+    if (error) throw error;
+
+    posts.unshift({
+      id: data.id, model, reel, date, time, caption,
+      media_url, media_type, thumb_url, storage_path, thumb_path
+    });
+
+    renderFeed();
+    closeModal();
+    showToast('Post saved ✓', 'success');
+  } catch(e) {
+    hideLoading();
+    showToast('Save failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Post';
+  }
+}
+
+// ============================================================
+// DELETE POST
+// ============================================================
+async function deletePost() {
+  if (currentLightboxIndex === null) return;
+  if (!confirm('Delete this post?')) return;
+  const post = posts[currentLightboxIndex];
+
+  showLoading('Deleting...');
+  try {
+    // Delete from DB
+    const { error } = await sbClient.from(TABLE_POSTS).delete().eq('id', post.id);
+    if (error) throw error;
+
+    // Delete media from storage
+    const toDelete = [];
+    if (post.storage_path) toDelete.push(post.storage_path);
+    if (post.thumb_path) toDelete.push(post.thumb_path);
+    if (toDelete.length > 0) await sbClient.storage.from(STORAGE_BUCKET).remove(toDelete);
+
+    posts.splice(currentLightboxIndex, 1);
+    renderFeed();
+    document.getElementById('lightbox').classList.remove('open');
+    document.getElementById('lbMedia').innerHTML = '';
+    currentLightboxIndex = null;
+    showToast('Post deleted');
+  } catch(e) {
+    showToast('Delete failed: ' + e.message, 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+// ============================================================
+// EDIT POST
+// ============================================================
+function openEditMode() {
+  const post = posts[currentLightboxIndex];
+  if (!post) return;
+  editFileData = null;
+  document.getElementById('editFilePreview').textContent = post.media_url ? '✓ Media on file (cloud)' : 'No media attached';
+  document.getElementById('editFilePreview').style.color = post.media_url ? 'var(--accent)' : 'rgba(255,255,255,0.3)';
+  document.getElementById('editModel').value = post.model;
+  document.getElementById('editReel').value = post.reel || '';
+  document.getElementById('editTime').value = post.time || '';
+  document.getElementById('editDate').value = post.date || '';
+  document.getElementById('editCaption').value = post.caption || '';
+  document.getElementById('editForm').style.display = 'block';
+}
+
+function cancelEdit() {
+  document.getElementById('editForm').style.display = 'none';
+  editFileData = null;
+}
+
+async function saveEdit() {
+  const post = posts[currentLightboxIndex];
+  if (!post) return;
+
+  const btn = document.getElementById('saveEditBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  try {
+    const updates = {
+      model: document.getElementById('editModel').value,
+      reel: document.getElementById('editReel').value,
+      post_time: document.getElementById('editTime').value,
+      post_date: document.getElementById('editDate').value,
+      caption: document.getElementById('editCaption').value,
+    };
+
+    // If new media file selected, upload it
+    if (editFileData) {
+      showLoading('Uploading new media...');
+      const wrap = document.getElementById('editUploadProgressWrap');
+      const fill = document.getElementById('editUploadProgressFill');
+      wrap.style.display = 'block';
+
+      // Delete old files
+      const toDelete = [];
+      if (post.storage_path) toDelete.push(post.storage_path);
+      if (post.thumb_path) toDelete.push(post.thumb_path);
+      if (toDelete.length > 0) await sbClient.storage.from(STORAGE_BUCKET).remove(toDelete);
+
+      const uploaded = await uploadFileToStorage(editFileData.file, (pct) => {
+        fill.style.width = pct + '%';
+      });
+      updates.media_url = uploaded.url;
+      updates.storage_path = uploaded.path;
+      updates.media_type = editFileData.file.type || 'video/mp4';
+
+      if (editFileData.thumb) {
+        const baseName = uploaded.path.split('/').pop().split('.')[0];
+        const thumbUploaded = await uploadThumbToStorage(editFileData.thumb, baseName);
+        updates.thumb_url = thumbUploaded.url;
+        updates.thumb_path = thumbUploaded.path;
+      } else {
+        updates.thumb_url = null;
+        updates.thumb_path = null;
+      }
+
+      wrap.style.display = 'none';
+      hideLoading();
+    }
+
+    const { error } = await sbClient.from(TABLE_POSTS).update(updates).eq('id', post.id);
+    if (error) throw error;
+
+    // Update local state
+    post.model = updates.model;
+    post.reel = updates.reel;
+    post.time = updates.post_time;
+    post.date = updates.post_date;
+    post.caption = updates.caption;
+    if (editFileData) {
+      post.media_url = updates.media_url;
+      post.media_type = updates.media_type;
+      post.thumb_url = updates.thumb_url || null;
+      post.storage_path = updates.storage_path;
+      post.thumb_path = updates.thumb_path || null;
+    }
+
+    // Update lightbox display
+    document.getElementById('lbModel').textContent = post.model;
+    document.getElementById('lbDate').textContent = formatDate(post.date);
+    document.getElementById('lbTime').textContent = post.time ? formatTime(post.time) : '';
+    document.getElementById('lbReel').textContent = post.reel ? `Reel #${post.reel}` : '';
+    document.getElementById('lbCaption').textContent = post.caption || 'No caption';
+
+    // Refresh lightbox media if changed
+    if (editFileData) {
+      const lbMedia = document.getElementById('lbMedia');
+      renderLightboxMedia(lbMedia, post);
+    }
+
+    document.getElementById('editForm').style.display = 'none';
+    editFileData = null;
+    renderFeed();
+    showToast('Post updated ✓', 'success');
+  } catch(e) {
+    hideLoading();
+    showToast('Update failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Changes';
+  }
+}
+
+// ============================================================
+// FILE HANDLING
+// ============================================================
+function extractVideoThumbnail(file, callback) {
+  const url = URL.createObjectURL(file);
+  const video = document.createElement('video');
+  video.src = url;
+  video.muted = true;
+  video.playsInline = true;
+  video.currentTime = 0.5;
+  video.addEventListener('seeked', () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 320;
+    canvas.height = video.videoHeight || 568;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const thumb = canvas.toDataURL('image/jpeg', 0.8);
+    URL.revokeObjectURL(url);
+    callback(thumb);
+  });
+  video.addEventListener('error', () => { URL.revokeObjectURL(url); callback(null); });
+  video.load();
+}
+
+function handleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const isVideo = file.type.startsWith('video') || file.name.toLowerCase().endsWith('.mov');
+  if (isVideo) {
+    extractVideoThumbnail(file, (thumb) => {
+      newFileData = { file, thumb };
+      document.getElementById('filePreview').textContent = '✓ ' + file.name;
+    });
+  } else {
+    newFileData = { file, thumb: null };
+    document.getElementById('filePreview').textContent = '✓ ' + file.name;
+  }
+}
+
+function handleEditFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const isVideo = file.type.startsWith('video') || file.name.toLowerCase().endsWith('.mov');
+  if (isVideo) {
+    extractVideoThumbnail(file, (thumb) => {
+      editFileData = { file, thumb };
+      document.getElementById('editFilePreview').textContent = '✓ ' + file.name;
+    });
+  } else {
+    editFileData = { file, thumb: null };
+    document.getElementById('editFilePreview').textContent = '✓ ' + file.name;
+  }
+}
+
+// ============================================================
+// MODAL
+// ============================================================
+function openModal() {
+  newFileData = null;
+  document.getElementById('filePreview').textContent = '';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('postCaption').value = '';
+  document.getElementById('postReel').value = '';
+  const today = new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Manila'});
+  document.getElementById('postDate').value = today;
+  document.getElementById('postTime').value = '07:15';
+  document.getElementById('uploadProgressWrap').style.display = 'none';
+  document.getElementById('uploadProgressFill').style.width = '0%';
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  newFileData = null;
+}
+
+// ============================================================
+// FORMAT HELPERS
+// ============================================================
+function formatDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function formatTime(timeStr) {
+  if (!timeStr) return '';
+  const [h, m] = timeStr.split(':');
+  const hour = parseInt(h);
+  const ampm = hour >= 12 ? 'PM' : 'AM';
+  const h12 = hour % 12 || 12;
+  return `${h12}:${m} ${ampm}`;
+}
+
+// ============================================================
+// RENDER FEED
+// ============================================================
+function filterPosts() { renderFeed(); }
+
+function renderFeed() {
+  const filter = document.getElementById('modelFilter').value;
+  const filtered = filter === 'all' ? posts : posts.filter(p => p.model === filter);
+
+  document.getElementById('totalCount').textContent = posts.length;
+  document.getElementById('showingCount').textContent = filtered.length;
+
+  const main = document.getElementById('feedMain');
+
+  if (filtered.length === 0) {
+    if (posts.length === 0) {
+      main.innerHTML = `<div class="empty-state"><div class="empty-icon">🎬</div><div class="empty-title">Your feed wall is empty</div><div class="empty-text">Upload your first post to get started</div></div>`;
+    } else {
+      main.innerHTML = '<div class="no-results">No posts found for this model</div>';
+    }
+    return;
+  }
+
+  // Group by date
+  const groups = {};
+  filtered.forEach(post => {
+    const d = post.date || 'Unknown';
+    if (!groups[d]) groups[d] = [];
+    groups[d].push(post);
+  });
+
+  const sortedDates = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+
+  let html = '';
+  sortedDates.forEach(date => {
+    const datePosts = groups[date].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+    html += `<div class="date-group">
+      <div class="date-label">
+        ${formatDate(date)}
+        <span class="date-count">${datePosts.length} post${datePosts.length > 1 ? 's' : ''}</span>
+      </div>
+      <div class="grid">`;
+
+    datePosts.forEach(post => {
+      const idx = posts.indexOf(post);
+      let thumbHtml = '';
+
+      if (post.thumb_url) {
+        thumbHtml = `<img src="${post.thumb_url}" style="width:100%;height:100%;object-fit:cover;" loading="lazy">`;
+      } else if (post.media_url && post.media_type && !post.media_type.startsWith('video')) {
+        thumbHtml = `<img src="${post.media_url}" alt="thumbnail" loading="lazy" style="width:100%;height:100%;object-fit:cover;">`;
+      } else {
+        thumbHtml = `<div class="thumb-placeholder">
+          <div class="play-icon">🎬</div>
+          <div class="reel-num">#${post.reel || '—'}</div>
+        </div>`;
+      }
+
+      html += `<div class="card" onclick="openLightbox(${idx})">
+        <div class="card-thumb">
+          ${thumbHtml}
+          <div class="model-tag">${post.model}</div>
+          ${post.time ? `<div class="time-tag">${formatTime(post.time)}</div>` : ''}
+        </div>
+        <div class="card-info">
+          ${post.reel ? `<div class="card-reel">Reel #${post.reel}</div>` : ''}
+          <div class="card-caption">${post.caption || '<em style="opacity:0.4">No caption</em>'}</div>
+        </div>
+      </div>`;
+    });
+
+    html += `</div></div>`;
+  });
+
+  main.innerHTML = html;
+}
+
+// ============================================================
+// LIGHTBOX
+// ============================================================
+function renderLightboxMedia(wrap, post) {
+  wrap.innerHTML = '';
+  if (!post.media_url) {
+    wrap.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:rgba(255,255,255,0.3)">
+      <div style="font-size:48px">🎬</div><div style="font-size:13px;letter-spacing:1px">NO MEDIA</div></div>`;
+    return;
+  }
+
+  const isVideo = post.media_type && post.media_type.startsWith('video');
+  if (isVideo) {
+    if (post.thumb_url) {
+      wrap.innerHTML = `<div style="position:relative;width:100%;height:100%;" id="lbVideoWrap">
+        <img src="${post.thumb_url}" style="width:100%;height:100%;object-fit:cover;">
+        <div onclick="playLbVideo('${post.media_url}')" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;cursor:pointer;background:rgba(0,0,0,0.15);">
+          <div style="background:rgba(201,169,110,0.9);border-radius:50%;width:60px;height:60px;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;box-shadow:0 4px 20px rgba(0,0,0,0.4);">▶</div>
+        </div>
+      </div>`;
+    } else {
+      wrap.innerHTML = `<video src="${post.media_url}" controls autoplay muted style="width:100%;height:100%;object-fit:cover"></video>`;
+    }
+  } else {
+    wrap.innerHTML = `<img src="${post.media_url}" style="width:100%;height:100%;object-fit:cover">`;
+  }
+}
+
+function playLbVideo(url) {
+  const wrap = document.getElementById('lbVideoWrap');
+  if (!wrap) return;
+  wrap.innerHTML = `<video src="${url}" controls autoplay style="width:100%;height:100%;object-fit:cover;background:#000;"></video>`;
+  const vid = wrap.querySelector('video');
+  vid.play().catch(() => {});
+}
+
+function openLightbox(idx) {
+  const lbMedia = document.getElementById('lbMedia');
+  const prevVideos = lbMedia.querySelectorAll('video');
+  prevVideos.forEach(v => { v.pause(); v.src = ''; });
+  lbMedia.innerHTML = '';
+
+  currentLightboxIndex = idx;
+  const post = posts[idx];
+  if (!post) return;
+
+  renderLightboxMedia(lbMedia, post);
+
+  document.getElementById('lbModel').textContent = post.model;
+  document.getElementById('lbDate').textContent = formatDate(post.date);
+  document.getElementById('lbTime').textContent = post.time ? formatTime(post.time) : '';
+  document.getElementById('lbReel').textContent = post.reel ? `Reel #${post.reel}` : '';
+  document.getElementById('lbCaption').textContent = post.caption || 'No caption';
+
+  // Show/hide edit+delete based on role
+  const canEdit = currentUser && (currentUser.role === 'admin' || currentUser.role === 'editor');
+  document.getElementById('lbDelete').style.display = canEdit ? 'inline-block' : 'none';
+  document.querySelector('.lb-edit').style.display = canEdit ? 'inline-block' : 'none';
+
+  document.getElementById('lightbox').classList.add('open');
+}
+
+function closeLightbox(e) {
+  if (e && e.target !== document.getElementById('lightbox')) return;
+  const lbMedia = document.getElementById('lbMedia');
+  const videos = lbMedia.querySelectorAll('video');
+  videos.forEach(v => { v.pause(); v.src = ''; });
+  lbMedia.innerHTML = '';
+  document.getElementById('lightbox').classList.remove('open');
+  document.getElementById('editForm').style.display = 'none';
+  editFileData = null;
+  currentLightboxIndex = null;
+  if (openedFromTracker) {
+    openedFromTracker = false;
+    setTimeout(() => switchTab('tracker'), 50);
+  }
+}
+
+// ============================================================
+// TRACKER
+// ============================================================
+function switchTab(tab) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1) + 'Btn').classList.add('active');
+  document.getElementById('statsBar').style.display = tab === 'feed' ? 'flex' : 'none';
+  if (tab === 'tracker') renderTracker();
+  if (tab === 'analytics') renderAnalytics();
+}
+
+function renderTracker() {
+  const today = new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Manila'});
+  const label = new Date(today + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  document.getElementById('trackerDateLabel').textContent = label;
+
+  const todayPosts = posts
+    .filter(p => p.date === today)
+    .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+
+  const tbody = document.getElementById('trackerBody');
+
+  if (todayPosts.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="tracker-empty">
+      <div class="tracker-empty-title">No posts scheduled for today</div>
+      <div class="tracker-empty-text">Upload posts with today's date to see them here</div>
+    </td></tr>`;
+    document.getElementById('progressFill').style.width = '0%';
+    document.getElementById('progressText').textContent = '0 / 0 posted';
+    return;
+  }
+
+  let checked = {};
+  try {
+    const r = localStorage.getItem('tracker-checked-' + today);
+    if (r) checked = JSON.parse(r);
+  } catch(e) {}
+
+  const doneCount = Object.values(checked).filter(Boolean).length;
+  const pct = Math.round((doneCount / todayPosts.length) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = `${doneCount} / ${todayPosts.length} posted`;
+
+  tbody.innerHTML = todayPosts.map((post) => {
+    const isDone = checked[post.id] || false;
+    const postIdx = posts.indexOf(post);
+    return `<tr class="${isDone ? 'done' : ''}" id="tracker-row-${post.id}">
+      <td><input type="checkbox" class="tracker-check" ${isDone ? 'checked' : ''} onchange="toggleCheck('${post.id}', this, '${today}', ${todayPosts.length})"></td>
+      <td><div class="tracker-time">${formatTime(post.time)}</div></td>
+      <td onclick="openFromTracker(${postIdx})" style="cursor:pointer;">
+        <div class="tracker-model-badge">${post.model}</div>
+      </td>
+      <td onclick="openFromTracker(${postIdx})" style="cursor:pointer;">
+        <div class="tracker-reel">#${post.reel || '—'}</div>
+      </td>
+      <td onclick="openFromTracker(${postIdx})" style="cursor:pointer;">
+        <div class="tracker-caption">${post.caption || '<em style="opacity:0.4">No caption</em>'}</div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleCheck(postId, checkbox, today, total) {
+  let checked = {};
+  try {
+    const r = localStorage.getItem('tracker-checked-' + today);
+    if (r) checked = JSON.parse(r);
+  } catch(e) {}
+
+  checked[postId] = checkbox.checked;
+  localStorage.setItem('tracker-checked-' + today, JSON.stringify(checked));
+
+  const row = document.getElementById('tracker-row-' + postId);
+  if (checkbox.checked) row.classList.add('done');
+  else row.classList.remove('done');
+
+  const doneCount = Object.values(checked).filter(Boolean).length;
+  const pct = Math.round((doneCount / total) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = `${doneCount} / ${total} posted`;
+}
+
+function openFromTracker(idx) {
+  openedFromTracker = true;
+  switchTab('feed');
+  setTimeout(() => openLightbox(idx), 100);
+}
+
+// ============================================================
+// FILE DROP - drag & drop for upload modal
+// ============================================================
+const fileDrop = document.getElementById('fileDrop');
+fileDrop.addEventListener('dragover', (e) => { e.preventDefault(); fileDrop.classList.add('dragover'); });
+fileDrop.addEventListener('dragleave', () => fileDrop.classList.remove('dragover'));
+fileDrop.addEventListener('drop', (e) => {
+  e.preventDefault();
+  fileDrop.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const isVideo = file.type.startsWith('video') || file.name.toLowerCase().endsWith('.mov');
+  if (isVideo) {
+    extractVideoThumbnail(file, (thumb) => {
+      newFileData = { file, thumb };
+      document.getElementById('filePreview').textContent = '✓ ' + file.name;
+    });
+  } else {
+    newFileData = { file, thumb: null };
+    document.getElementById('filePreview').textContent = '✓ ' + file.name;
+  }
+});
+
+// Keyboard close
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.getElementById('lightbox').classList.remove('open');
+    closeModal();
+  }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.getElementById('newModelName');
+  if (input) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') addModel(); });
+});
+
+// ============================================================
+// INIT
+// ============================================================
+async function checkAutoConnect() {
+  // Called after login — connect Supabase and load data
+  const connected = await tryAutoConnect();
+  if (connected) {
+    await initApp();
+  } else {
+    // Show setup screen (Supabase credentials needed)
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('setupScreen').style.display = 'flex';
+  }
+}
+
+async function initApp() {
+  document.getElementById('app').style.display = 'block';
+  showLoading('Loading...');
+  await loadModels();
+  await loadPosts();
+  await loadStats();
+  hideLoading();
+}
+
+// ============================================================
+// ANALYTICS
+// ============================================================
+let postStats = []; // all stat entries
+
+async function loadStats() {
+  try {
+    const { data, error } = await sbClient
+      .from(TABLE_STATS)
+      .select('*')
+      .order('stat_date', { ascending: false });
+    if (error) throw error;
+    postStats = data || [];
+  } catch(e) {
+    postStats = [];
+  }
+}
+
+function openStatsModal() {
+  // Populate post select
+  const sel = document.getElementById('statsPostSelect');
+  sel.innerHTML = '<option value="">— Select a post (optional) —</option>';
+  [...posts].sort((a,b) => b.date.localeCompare(a.date)).forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = `${p.date} · ${p.model} · Reel #${p.reel || '—'}`;
+    sel.appendChild(opt);
+  });
+
+  // Populate model select
+  const mSel = document.getElementById('statsModel');
+  mSel.innerHTML = '';
+  models.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m; opt.textContent = m;
+    mSel.appendChild(opt);
+  });
+
+  // Also sync analytics model filter
+  const afSel = document.getElementById('analyticsModelFilter');
+  const cur = afSel.value;
+  afSel.innerHTML = '<option value="all">All Models</option>';
+  models.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m; opt.textContent = m;
+    afSel.appendChild(opt);
+  });
+  afSel.value = cur || 'all';
+
+  // Default date
+  const today = new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Manila'});
+  document.getElementById('statsDate').value = today;
+  document.getElementById('statsViews').value = '';
+  document.getElementById('statsLikes').value = '';
+  document.getElementById('statsHashtag').value = '';
+  document.getElementById('statsNotes').value = '';
+  document.getElementById('statsReel').value = '';
+  document.getElementById('statsPostSelect').value = '';
+
+  document.getElementById('statsModalOverlay').classList.add('open');
+}
+
+function closeStatsModal() {
+  document.getElementById('statsModalOverlay').classList.remove('open');
+}
+
+function autofillStatsFromPost() {
+  const postId = document.getElementById('statsPostSelect').value;
+  if (!postId) return;
+  const post = posts.find(p => String(p.id) === String(postId));
+  if (!post) return;
+  document.getElementById('statsModel').value = post.model;
+  document.getElementById('statsReel').value = post.reel || '';
+  document.getElementById('statsDate').value = post.date || '';
+}
+
+async function saveStats() {
+  const model = document.getElementById('statsModel').value;
+  const reel = document.getElementById('statsReel').value;
+  const date = document.getElementById('statsDate').value;
+  const platform = document.getElementById('statsPlatform').value;
+  const views = parseInt(document.getElementById('statsViews').value) || 0;
+  const likes = parseInt(document.getElementById('statsLikes').value) || 0;
+  const hashtag_reach = parseInt(document.getElementById('statsHashtag').value) || 0;
+  const notes = document.getElementById('statsNotes').value;
+  const post_id = document.getElementById('statsPostSelect').value || null;
+
+  if (!model || !date) {
+    showToast('Please fill in Model and Date', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('saveStatsBtn');
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+
+  try {
+    const { data, error } = await sbClient.from(TABLE_STATS).insert({
+      model, reel, stat_date: date, platform, views, likes, hashtag_reach, notes,
+      post_id: post_id ? parseInt(post_id) : null
+    }).select().single();
+    if (error) throw error;
+
+    postStats.unshift(data);
+    closeStatsModal();
+    renderAnalytics();
+    showToast('Stats saved ✓', 'success');
+  } catch(e) {
+    showToast('Failed to save stats: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Stats';
+  }
+}
+
+async function deleteStat(id) {
+  if (!confirm('Delete this stat entry?')) return;
+  try {
+    const { error } = await sbClient.from(TABLE_STATS).delete().eq('id', id);
+    if (error) throw error;
+    postStats = postStats.filter(s => s.id !== id);
+    renderAnalytics();
+    showToast('Stat deleted');
+  } catch(e) {
+    showToast('Delete failed', 'error');
+  }
+}
+
+function formatNum(n) {
+  if (!n) return '0';
+  if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n/1000).toFixed(1) + 'K';
+  return n.toLocaleString();
+}
+
+function renderAnalytics() {
+  const filterModel = document.getElementById('analyticsModelFilter').value;
+  const canEdit = currentUser && (currentUser.role === 'admin' || currentUser.role === 'editor');
+
+  // Sync model filter options
+  const afSel = document.getElementById('analyticsModelFilter');
+  const curVal = afSel.value;
+  afSel.innerHTML = '<option value="all">All Models</option>';
+  models.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m; opt.textContent = m;
+    afSel.appendChild(opt);
+  });
+  afSel.value = curVal;
+
+  const filtered = filterModel === 'all'
+    ? postStats
+    : postStats.filter(s => s.model === filterModel);
+
+  // ── Overview Numbers ──
+  const totalViews = filtered.reduce((s, r) => s + (r.views || 0), 0);
+  const totalLikes = filtered.reduce((s, r) => s + (r.likes || 0), 0);
+  const totalHashtag = filtered.reduce((s, r) => s + (r.hashtag_reach || 0), 0);
+  const avgViews = filtered.length ? Math.round(totalViews / filtered.length) : 0;
+
+  // Top model by views
+  const modelViews = {};
+  filtered.forEach(r => {
+    modelViews[r.model] = (modelViews[r.model] || 0) + (r.views || 0);
+  });
+  const topModel = Object.entries(modelViews).sort((a,b) => b[1]-a[1])[0];
+
+  // Best reel by views
+  const bestReel = [...filtered].sort((a,b) => (b.views||0)-(a.views||0))[0];
+
+  document.getElementById('statTotalViews').textContent = formatNum(totalViews);
+  document.getElementById('statTotalLikes').textContent = formatNum(totalLikes);
+  document.getElementById('statTotalHashtag').textContent = formatNum(totalHashtag);
+  document.getElementById('statAvgViews').textContent = formatNum(avgViews);
+  document.getElementById('statTopModel').textContent = topModel ? topModel[0] : '—';
+  document.getElementById('statBestReel').textContent = bestReel ? `#${bestReel.reel || '—'} (${bestReel.model})` : '—';
+
+  // ── Model Breakdown ──
+  const maxViews = topModel ? topModel[1] : 1;
+  const breakdown = document.getElementById('modelBreakdown');
+
+  const modelNames = filterModel === 'all' ? models : [filterModel];
+  if (modelNames.length === 0 || filtered.length === 0) {
+    breakdown.innerHTML = '<div style="color:var(--muted);font-size:13px;font-style:italic;padding:16px 0;">No data yet</div>';
+  } else {
+    breakdown.innerHTML = modelNames.map(m => {
+      const rows = filtered.filter(r => r.model === m);
+      if (rows.length === 0) return '';
+      const mv = rows.reduce((s,r) => s+(r.views||0), 0);
+      const ml = rows.reduce((s,r) => s+(r.likes||0), 0);
+      const mh = rows.reduce((s,r) => s+(r.hashtag_reach||0), 0);
+      const pct = maxViews > 0 ? Math.round((mv/maxViews)*100) : 0;
+      const avgLikeRate = mv > 0 ? ((ml/mv)*100).toFixed(1) : '0.0';
+      return `<div class="model-stat-card">
+        <div class="model-stat-name">
+          ${m}
+          <span class="model-stat-post-count">${rows.length} post${rows.length>1?'s':''}</span>
+        </div>
+        <div class="model-stat-row">
+          <span class="model-stat-metric">👁️ Views</span>
+          <span class="model-stat-val">${formatNum(mv)}</span>
+        </div>
+        <div class="model-stat-row">
+          <span class="model-stat-metric">❤️ Likes</span>
+          <span class="model-stat-val">${formatNum(ml)}</span>
+        </div>
+        <div class="model-stat-row">
+          <span class="model-stat-metric">#️⃣ Hashtag Reach</span>
+          <span class="model-stat-val">${formatNum(mh)}</span>
+        </div>
+        <div class="model-stat-row" style="border-bottom:none;">
+          <span class="model-stat-metric">📈 Like Rate</span>
+          <span class="model-stat-val">${avgLikeRate}%</span>
+        </div>
+        <div class="model-stat-bar-wrap">
+          <div class="model-stat-bar-fill" style="width:${pct}%"></div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Table ──
+  const tableEl = document.getElementById('analyticsTable');
+  const emptyEl = document.getElementById('analyticsEmpty');
+
+  if (filtered.length === 0) {
+    tableEl.style.display = 'none';
+    emptyEl.style.display = 'block';
+    return;
+  }
+
+  tableEl.style.display = 'table';
+  emptyEl.style.display = 'none';
+
+  const tbody = document.getElementById('analyticsBody');
+  tbody.innerHTML = filtered.map(r => {
+    const likeRate = r.views > 0 ? ((r.likes/r.views)*100).toFixed(1) : '0.0';
+    const rateClass = parseFloat(likeRate) >= 5 ? 'like-rate-high' : parseFloat(likeRate) >= 2 ? 'like-rate-mid' : 'like-rate-low';
+    return `<tr>
+      <td style="color:var(--muted);font-size:12px;">${r.stat_date || '—'}</td>
+      <td><span style="background:var(--text);color:#fff;font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:1px;">${r.model}</span></td>
+      <td style="color:var(--accent-dark);font-weight:600;font-size:12px;">#${r.reel || '—'}</td>
+      <td><span class="stat-views">${formatNum(r.views)}</span></td>
+      <td><span class="stat-likes">${formatNum(r.likes)}</span></td>
+      <td><span class="stat-hashtag">${formatNum(r.hashtag_reach)}</span></td>
+      <td><span class="like-rate-badge ${rateClass}">${likeRate}%</span></td>
+      <td>${canEdit ? `<button class="stat-del-btn" onclick="deleteStat(${r.id})">🗑</button>` : ''}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ============================================================
+// BOOT SEQUENCE
+// ============================================================
+(async () => {
+  const loggedIn = tryAutoLogin();
+  if (loggedIn) {
+    await checkAutoConnect();
+  }
+  // else: login screen stays visible (default)
+
+  // Enter key on login form
+  document.getElementById('loginPass').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doLogin();
+  });
+  document.getElementById('loginUser').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('loginPass').focus();
+  });
+})();
+</script>
+
+</body>
+</html>
