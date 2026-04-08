@@ -2295,43 +2295,15 @@ const TABLE_MODELS = 'models';
 const TABLE_CHECKED = 'tracker_checked';
 const TABLE_STATS = 'post_stats';
 
-async function connectSupabase() {
-  const url = document.getElementById('setupUrl').value.trim();
-  const key = document.getElementById('setupKey').value.trim();
-  const errEl = document.getElementById('setupError');
-  errEl.style.display = 'none';
+// Supabase credentials hardcoded — no setup screen needed
+const SB_URL = 'https://pmcrjpxkstygmswucmcr.supabase.co';
+const SB_KEY = 'sb_publishable_Hh1nK2agw28luApQNsuw2A_XN8yMv6j';
 
-  if (!url || !key) {
-    errEl.textContent = 'Please fill in both fields.';
-    errEl.style.display = 'block';
-    return;
-  }
-
-  try {
-    sbClient = window.supabase.createClient(url, key);
-    // Test connection
-    const { error } = await sbClient.from(TABLE_POSTS).select('id').limit(1);
-    if (error && error.code !== 'PGRST116') throw error;
-
-    // Save credentials
-    localStorage.setItem('feedwall-sb-url', url);
-    localStorage.setItem('feedwall-sb-key', key);
-
-    document.getElementById('setupScreen').style.display = 'none';
-    await initApp();
-  } catch(e) {
-    errEl.textContent = 'Connection failed: ' + (e.message || 'Check your URL and key.');
-    errEl.style.display = 'block';
-  }
-}
+async function connectSupabase() {} // not used
 
 async function tryAutoConnect() {
-  const url = localStorage.getItem('feedwall-sb-url');
-  const key = localStorage.getItem('feedwall-sb-key');
-  if (!url || !key) return false;
-
   try {
-    sbClient = window.supabase.createClient(url, key);
+    sbClient = window.supabase.createClient(SB_URL, SB_KEY);
     const { error } = await sbClient.from(TABLE_POSTS).select('id').limit(1);
     if (error && error.code !== 'PGRST116') throw error;
     return true;
@@ -2521,9 +2493,8 @@ async function uploadFileToStorage(file, onProgress) {
   // Supabase JS v2 doesn't support upload progress natively,
   // so we use XMLHttpRequest for progress tracking
   return new Promise(async (resolve, reject) => {
-    const { data: { session } } = await sbClient.auth.getSession();
-    const sbUrl = localStorage.getItem('feedwall-sb-url');
-    const sbKey = localStorage.getItem('feedwall-sb-key');
+    const sbUrl = SB_URL;
+    const sbKey = SB_KEY;
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${sbUrl}/storage/v1/object/${STORAGE_BUCKET}/${path}`);
@@ -3161,14 +3132,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // ============================================================
 async function checkAutoConnect() {
   // Called after login — connect Supabase and load data
-  const connected = await tryAutoConnect();
-  if (connected) {
-    await initApp();
-  } else {
-    // Show setup screen (Supabase credentials needed)
-    document.getElementById('app').style.display = 'block';
-    document.getElementById('setupScreen').style.display = 'flex';
-  }
+  // Credentials are hardcoded — always connect directly
+  await tryAutoConnect();
+  await initApp();
 }
 
 async function initApp() {
