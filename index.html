@@ -476,43 +476,111 @@
 
   /* MAIN */
   main {
-    padding: 32px;
+    padding: 16px 0;
     max-width: 1400px;
     margin: 0 auto;
   }
 
   /* DATE SEPARATOR */
-  .date-group { margin-bottom: 40px; }
+  .date-group { margin-bottom: 8px; }
 
   .date-label {
     font-family: 'Cormorant Garamond', serif;
-    font-size: 22px;
+    font-size: 18px;
     font-weight: 300;
     font-style: italic;
     color: var(--text);
-    margin-bottom: 16px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border);
+    padding: 12px 18px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s, border-color 0.2s;
   }
 
-  .date-label::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--border);
+  .date-label:hover {
+    background: #f0ebe4;
+    border-color: var(--accent);
+  }
+
+  .date-label.open {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom-color: var(--border);
+  }
+
+  .date-label::after { display: none; }
+
+  .date-chevron {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--muted);
+    transition: transform 0.25s ease;
+    display: inline-block;
+  }
+
+  .date-label.open .date-chevron {
+    transform: rotate(180deg);
   }
 
   .date-count {
+    font-family: 'Jost', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: var(--muted);
+    text-transform: uppercase;
+    background: var(--border);
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+
+  .date-posts {
+    display: none;
+    border: 1px solid var(--border);
+    border-top: none;
+    border-bottom-left-radius: 2px;
+    border-bottom-right-radius: 2px;
+    padding: 16px;
+    background: var(--card-bg);
+    margin-bottom: 0;
+  }
+
+  .date-posts.open {
+    display: block;
+  }
+
+  /* DATE NAV BAR */
+  .date-nav {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 16px 32px 0;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .date-nav-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 5px 14px;
     font-family: 'Jost', sans-serif;
     font-size: 11px;
     font-weight: 500;
     letter-spacing: 1px;
     color: var(--muted);
-    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 20px;
+    transition: all 0.2s;
+    white-space: nowrap;
   }
+
+  .date-nav-btn:hover { border-color: var(--accent); color: var(--accent-dark); }
+  .date-nav-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
 
   /* GRID */
   .grid {
@@ -2833,6 +2901,19 @@ function formatTime(timeStr) {
 // ============================================================
 function filterPosts() { renderFeed(); }
 
+function toggleDateGroup(date) {
+  const label = document.getElementById('date-label-' + date);
+  const posts = document.getElementById('date-posts-' + date);
+  const isOpen = posts.classList.contains('open');
+  if (isOpen) {
+    label.classList.remove('open');
+    posts.classList.remove('open');
+  } else {
+    label.classList.add('open');
+    posts.classList.add('open');
+  }
+}
+
 function renderFeed() {
   const filter = document.getElementById('modelFilter').value;
   const filtered = filter === 'all' ? posts : posts.filter(p => p.model === filter);
@@ -2861,15 +2942,25 @@ function renderFeed() {
 
   const sortedDates = Object.keys(groups).sort((a, b) => b.localeCompare(a));
 
-  let html = '';
-  sortedDates.forEach(date => {
+  // First date open by default
+  const openDate = sortedDates[0];
+
+  let html = '<div style="padding:0 32px;max-width:1400px;margin:0 auto;">';
+
+  sortedDates.forEach((date, i) => {
     const datePosts = groups[date].sort((a, b) => (a.time || '').localeCompare(b.time || ''));
-    html += `<div class="date-group">
-      <div class="date-label">
-        ${formatDate(date)}
-        <span class="date-count">${datePosts.length} post${datePosts.length > 1 ? 's' : ''}</span>
-      </div>
-      <div class="grid">`;
+    const isOpen = date === openDate;
+    const safeDate = date.replace(/-/g, '_');
+
+    html += `
+      <div class="date-group">
+        <div class="date-label ${isOpen ? 'open' : ''}" id="date-label-${safeDate}" onclick="toggleDateGroup('${safeDate}')">
+          ${formatDate(date)}
+          <span class="date-count">${datePosts.length} post${datePosts.length > 1 ? 's' : ''}</span>
+          <span class="date-chevron">▾</span>
+        </div>
+        <div class="date-posts ${isOpen ? 'open' : ''}" id="date-posts-${safeDate}">
+          <div class="grid">`;
 
     datePosts.forEach(post => {
       const idx = posts.indexOf(post);
@@ -2899,9 +2990,10 @@ function renderFeed() {
       </div>`;
     });
 
-    html += `</div></div>`;
+    html += `</div></div></div>`;
   });
 
+  html += '</div>';
   main.innerHTML = html;
 }
 
