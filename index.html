@@ -3239,17 +3239,24 @@ async function loadStats() {
 }
 
 function openStatsModal() {
-  // Populate post select
+  // Get currently selected model filter
+  const selectedModel = document.getElementById('analyticsModelFilter').value;
+  const filterByModel = selectedModel !== 'all' ? selectedModel : null;
+
+  // Populate post select — filtered by model if one is selected
   const sel = document.getElementById('statsPostSelect');
   sel.innerHTML = '<option value="">— Select a post (optional) —</option>';
-  [...posts].sort((a,b) => b.date.localeCompare(a.date)).forEach(p => {
+  const filteredPosts = filterByModel
+    ? [...posts].filter(p => p.model === filterByModel)
+    : [...posts];
+  filteredPosts.sort((a,b) => b.date.localeCompare(a.date)).forEach(p => {
     const opt = document.createElement('option');
     opt.value = p.id;
     opt.textContent = `${p.date} · ${p.model} · Reel #${p.reel || '—'}`;
     sel.appendChild(opt);
   });
 
-  // Populate model select
+  // Populate model select — if a model is selected, default to it
   const mSel = document.getElementById('statsModel');
   mSel.innerHTML = '';
   models.forEach(m => {
@@ -3257,6 +3264,7 @@ function openStatsModal() {
     opt.value = m; opt.textContent = m;
     mSel.appendChild(opt);
   });
+  if (filterByModel) mSel.value = filterByModel;
 
   // Also sync analytics model filter
   const afSel = document.getElementById('analyticsModelFilter');
@@ -3278,6 +3286,12 @@ function openStatsModal() {
   document.getElementById('statsNotes').value = '';
   document.getElementById('statsReel').value = '';
   document.getElementById('statsPostSelect').value = '';
+
+  // Update modal title to show which model is selected
+  const modalTitle = document.querySelector('#statsModalOverlay .modal-title');
+  if (modalTitle) {
+    modalTitle.textContent = filterByModel ? `Log Stats — ${filterByModel}` : 'Log Post Stats';
+  }
 
   document.getElementById('statsModalOverlay').classList.add('open');
 }
