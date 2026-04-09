@@ -1751,6 +1751,7 @@
   <button class="tab-btn active" id="tabFeedBtn" onclick="switchTab('feed')">🎬 Feed Wall</button>
   <button class="tab-btn" id="tabTrackerBtn" onclick="switchTab('tracker')">📋 Daily Tracker</button>
   <button class="tab-btn" id="tabAnalyticsBtn" onclick="switchTab('analytics')">📊 Analytics</button>
+  <button class="tab-btn" id="tabHashtagBtn" onclick="switchTab('hashtag')">#️⃣ Hashtag Bank</button>
 </div>
 
 <!-- REQUEST EDIT BANNER (for viewers) -->
@@ -1893,6 +1894,512 @@
   </div>
 </div>
 
+<!-- HASHTAG BANK TAB -->
+<div id="tab-hashtag" class="tab-content">
+  <div style="max-width:1100px;margin:0 auto;padding:32px 24px;">
+
+    <!-- Header -->
+    <div style="margin-bottom:28px;">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:300;letter-spacing:1px;">Hashtag Bank</div>
+      <div style="font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-top:4px;">7 Creators · 14-Post Rotation · 10–12 Tags Per Post</div>
+    </div>
+
+    <!-- Non-negotiables bar -->
+    <div style="background:var(--text);color:#faf7f4;padding:16px 20px;border-radius:4px;margin-bottom:28px;display:flex;flex-wrap:wrap;gap:16px;align-items:center;">
+      <span style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--accent);font-weight:600;min-width:120px;">Every Post:</span>
+      <span style="font-size:12px;">✓ Promote Post <b>ON</b></span>
+      <span style="font-size:12px;">✓ <b>#fyp</b> + <b>#foryou</b> always</span>
+      <span style="font-size:12px;">✓ Clip <b>6–15 sec</b></span>
+      <span style="font-size:12px;">✓ <b>No watermarks</b></span>
+      <span style="font-size:12px;">✓ <b>10–12 hashtags</b></span>
+      <span style="font-size:12px;">✓ Tier 3 every <b>other</b> post only</span>
+    </div>
+
+    <!-- Creator selector -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;" id="hashtagCreatorBtns">
+      <button onclick="showHashtagCreator('josie')" class="htag-creator-btn active" id="hbtn-josie">Josie</button>
+      <button onclick="showHashtagCreator('emma')" class="htag-creator-btn" id="hbtn-emma">Emma</button>
+      <button onclick="showHashtagCreator('akasha')" class="htag-creator-btn" id="hbtn-akasha">Akasha</button>
+      <button onclick="showHashtagCreator('myla')" class="htag-creator-btn" id="hbtn-myla">Myla</button>
+      <button onclick="showHashtagCreator('lola')" class="htag-creator-btn" id="hbtn-lola">Lola</button>
+      <button onclick="showHashtagCreator('grace')" class="htag-creator-btn" id="hbtn-grace">Grace</button>
+      <button onclick="showHashtagCreator('mia')" class="htag-creator-btn" id="hbtn-mia">Mia</button>
+    </div>
+
+    <!-- Creator content panels -->
+    <div id="hashtag-panels"></div>
+
+  </div>
+</div>
+
+<style>
+  .htag-creator-btn {
+    padding: 8px 20px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-family: 'Jost', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: all 0.15s;
+  }
+  .htag-creator-btn:hover { border-color: var(--accent); color: var(--text); }
+  .htag-creator-btn.active { background: var(--text); color: #faf7f4; border-color: var(--text); }
+
+  .htag-tier-block {
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .htag-tier-header {
+    padding: 10px 16px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .htag-tier-note {
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 400;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .htag-tier-tags {
+    padding: 12px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    background: var(--surface);
+  }
+  .htag-tag {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    font-size: 12px;
+    color: var(--text);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .htag-tag:hover { border-color: var(--accent); color: var(--accent-dark); }
+  .htag-tag.tier1 { background: #f5f0e8; border-color: #d4c4a8; }
+  .htag-tag.tier2 { background: #ede5d8; border-color: #c8b898; }
+  .htag-tag.tier3 { background: #e8d5bc; border-color: #c4956a; }
+
+  .htag-rotation-table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  .htag-rotation-table th {
+    font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--muted); font-weight: 600; padding: 10px 14px;
+    border-bottom: 2px solid var(--accent); text-align: left;
+    background: var(--bg);
+  }
+  .htag-rotation-table td {
+    padding: 12px 14px; font-size: 12px; border-bottom: 1px solid var(--border);
+    vertical-align: middle; line-height: 1.5;
+  }
+  .htag-rotation-table tr:last-child td { border-bottom: none; }
+  .htag-rotation-table tr:nth-child(even) td { background: var(--bg); }
+  .htag-rotation-table tr:hover td { background: rgba(201,169,110,0.07); }
+  .htag-post-num { font-weight: 700; color: var(--accent); font-size: 13px; text-align: center; }
+  .htag-copy-btn {
+    padding: 4px 10px; font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+    border: 1px solid var(--border); background: var(--surface); color: var(--muted);
+    cursor: pointer; border-radius: 2px; transition: all 0.15s; white-space: nowrap;
+  }
+  .htag-copy-btn:hover { border-color: var(--accent); color: var(--accent-dark); }
+  .htag-copy-btn.copied { background: var(--text); color: #faf7f4; border-color: var(--text); }
+
+  .htag-section-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 18px; font-weight: 400; margin: 24px 0 12px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  .htag-identity {
+    font-size: 11px; color: var(--muted); letter-spacing: 1px;
+    text-transform: uppercase; margin-bottom: 16px;
+  }
+  .htag-creator-panel { display: none; }
+  .htag-creator-panel.active { display: block; }
+  .htag-loop-note {
+    text-align: center; font-size: 11px; color: var(--muted);
+    font-style: italic; padding: 12px; border-top: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .htag-check-btn {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1.5px solid var(--border); background: var(--surface);
+    color: var(--muted); font-size: 13px; cursor: pointer;
+    transition: all 0.15s; display:flex; align-items:center; justify-content:center;
+    margin: 0 auto;
+  }
+  .htag-check-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .htag-check-btn.checked { background: var(--text); border-color: var(--text); color: #faf7f4; }
+  .htag-row-done td { opacity: 0.45; }
+  .htag-row-done td:nth-child(4) { opacity: 1; }
+  .htag-date-input, .htag-postnum-input {
+    width: 100%; border: 1px solid var(--border); background: var(--surface);
+    padding: 5px 7px; font-size: 11px; font-family: 'Jost', sans-serif;
+    color: var(--text); border-radius: 2px; outline: none;
+    transition: border-color 0.15s;
+  }
+  .htag-date-input:focus, .htag-postnum-input:focus { border-color: var(--accent); }
+</style>
+
+<script>
+const HASHTAG_DATA = {
+  josie: {
+    name: 'Josie',
+    identity: 'Girl Next Door · Soft · Curvy',
+    tone: 'Warm, girlfriend-energy, inviting',
+    tier1: ['#fyp','#foryou','#fansly','#fanslymodel'],
+    tier2: ['#girlnextdoor','#softgirl','#cute','#aesthetic','#naturalbody','#naturalbeauty','#fanslygirl','#pov','#curvygirl','#spicycontent','#contentcreator','#fanslybabe'],
+    tier3: ['#bigbooty','#bigtits','#curvy','#ass','#thicc'],
+    rotation: [
+      '#fyp #foryou #fansly #fanslymodel #girlnextdoor #softgirl #cute #aesthetic #curvygirl #bigbooty',
+      '#fyp #foryou #fansly #fanslymodel #naturalbody #pov #fanslygirl #curvygirl #spicycontent #contentcreator',
+      '#fyp #foryou #fansly #fanslymodel #softgirl #aesthetic #naturalbeauty #spicycontent #cute #fanslygirl #bigtits',
+      '#fyp #foryou #fansly #fanslymodel #cute #girlnextdoor #fanslygirl #pov #naturalbody #curvygirl',
+      '#fyp #foryou #fansly #fanslymodel #naturalbody #softgirl #curvygirl #aesthetic #girlnextdoor #spicycontent #curvy',
+      '#fyp #foryou #fansly #fanslymodel #girlnextdoor #naturalbeauty #pov #spicycontent #cute #fanslygirl',
+      '#fyp #foryou #fansly #fanslymodel #cute #fanslygirl #softgirl #aesthetic #naturalbody #contentcreator #ass',
+      '#fyp #foryou #fansly #fanslymodel #naturalbody #girlnextdoor #curvygirl #pov #softgirl #spicycontent',
+      '#fyp #foryou #fansly #fanslymodel #softgirl #spicycontent #aesthetic #naturalbeauty #cute #fanslygirl #thicc',
+      '#fyp #foryou #fansly #fanslymodel #cute #fanslygirl #pov #girlnextdoor #naturalbody #curvygirl',
+      '#fyp #foryou #fansly #fanslymodel #naturalbody #softgirl #curvygirl #aesthetic #spicycontent #contentcreator #bigbooty',
+      '#fyp #foryou #fansly #fanslymodel #girlnextdoor #naturalbeauty #spicycontent #pov #cute #fanslygirl',
+      '#fyp #foryou #fansly #fanslymodel #cute #softgirl #fanslygirl #aesthetic #naturalbody #curvygirl #bigtits',
+      '#fyp #foryou #fansly #fanslymodel #naturalbody #girlnextdoor #spicycontent #pov #softgirl #aesthetic',
+    ]
+  },
+  emma: {
+    name: 'Emma',
+    identity: 'Girl Next Door · Playful · Natural',
+    tone: 'Fun, lighthearted, keeps them guessing',
+    tier1: ['#fyp','#foryou','#fansly','#fanslymodel'],
+    tier2: ['#girlnextdoor','#softgirl','#cute','#aesthetic','#naturalbody','#twerk','#fanslygirl','#pov','#spicycontent','#contentcreator','#fanslybabe','#naturalbeauty'],
+    tier3: ['#bigbooty','#bigtits','#curvy','#ass','#thicc'],
+    rotation: [
+      '#fyp #foryou #fansly #fanslymodel #girlnextdoor #softgirl #twerk #aesthetic #contentcreator #bigbooty',
+      '#fyp #foryou #fansly #fanslymodel #cute #pov #fanslygirl #contentcreator #naturalbody #spicycontent',
+      '#fyp #foryou #fansly #fanslymodel #naturalbody #softgirl #spicycontent #aesthetic #twerk #fanslygirl #bigtits',
+      '#fyp #foryou #fansly #fanslymodel #girlnextdoor #twerk #pov #fanslygirl #cute #contentcreator',
+      '#fyp #foryou #fansly #fanslymodel #cute #aesthetic #naturalbody #spicycontent #softgirl #twerk #curvy',
+      '#fyp #foryou #fansly #fanslymodel #softgirl #contentcreator #pov #girlnextdoor #fanslygirl #aesthetic',
+      '#fyp #foryou #fansly #fanslymodel #twerk #fanslygirl #aesthetic #cute #naturalbody #spicycontent #ass',
+      '#fyp #foryou #fansly #fanslymodel #naturalbody #girlnextdoor #pov #spicycontent #softgirl #contentcreator',
+      '#fyp #foryou #fansly #fanslymodel #softgirl #aesthetic #twerk #contentcreator #cute #fanslygirl #thicc',
+      '#fyp #foryou #fansly #fanslymodel #cute #fanslygirl #pov #girlnextdoor #naturalbody #spicycontent',
+      '#fyp #foryou #fansly #fanslymodel #naturalbody #spicycontent #aesthetic #twerk #softgirl #contentcreator #bigbooty',
+      '#fyp #foryou #fansly #fanslymodel #softgirl #contentcreator #girlnextdoor #pov #cute #fanslygirl',
+      '#fyp #foryou #fansly #fanslymodel #cute #fanslygirl #aesthetic #twerk #naturalbody #spicycontent #bigtits',
+      '#fyp #foryou #fansly #fanslymodel #naturalbody #girlnextdoor #spicycontent #pov #softgirl #twerk',
+    ]
+  },
+  akasha: {
+    name: 'Akasha',
+    identity: 'Petite · GFE · Intimate · Wifey',
+    tone: 'Deep intimacy, makes them feel something real',
+    tier1: ['#fyp','#foryou','#fansly','#fanslymodel'],
+    tier2: ['#gfe','#wifeymaterial','#girlnextdoor','#cute','#pov','#nopants','#stockings','#fanslygirl','#spicycontent','#petitegirl','#fanslybabe','#intimate'],
+    tier3: ['#petite','#slimgirl','#smalltits','#tinygirl','#naughty'],
+    rotation: [
+      '#fyp #foryou #fansly #fanslymodel #gfe #wifeymaterial #cute #petitegirl #fanslygirl #petite',
+      '#fyp #foryou #fansly #fanslymodel #girlnextdoor #nopants #pov #fanslygirl #spicycontent #gfe',
+      '#fyp #foryou #fansly #fanslymodel #stockings #gfe #spicycontent #cute #wifeymaterial #fanslygirl #slimgirl',
+      '#fyp #foryou #fansly #fanslymodel #wifeymaterial #pov #petitegirl #girlnextdoor #cute #spicycontent',
+      '#fyp #foryou #fansly #fanslymodel #nopants #fanslygirl #cute #gfe #petitegirl #wifeymaterial #smalltits',
+      '#fyp #foryou #fansly #fanslymodel #stockings #spicycontent #pov #wifeymaterial #girlnextdoor #fanslygirl',
+      '#fyp #foryou #fansly #fanslymodel #girlnextdoor #petitegirl #cute #gfe #spicycontent #fanslygirl #naughty',
+      '#fyp #foryou #fansly #fanslymodel #nopants #pov #fanslygirl #spicycontent #wifeymaterial #cute',
+      '#fyp #foryou #fansly #fanslymodel #wifeymaterial #stockings #cute #gfe #petitegirl #fanslygirl #tinygirl',
+      '#fyp #foryou #fansly #fanslymodel #girlnextdoor #pov #petitegirl #fanslygirl #spicycontent #gfe',
+      '#fyp #foryou #fansly #fanslymodel #nopants #spicycontent #gfe #cute #petite #wifeymaterial #fanslygirl',
+      '#fyp #foryou #fansly #fanslymodel #stockings #wifeymaterial #pov #girlnextdoor #cute #spicycontent',
+      '#fyp #foryou #fansly #fanslymodel #cute #fanslygirl #petitegirl #gfe #spicycontent #wifeymaterial #slimgirl',
+      '#fyp #foryou #fansly #fanslymodel #nopants #pov #spicycontent #wifeymaterial #girlnextdoor #fanslygirl',
+    ]
+  },
+  myla: {
+    name: 'Myla',
+    identity: 'Petite · Blonde · Student · Alt Edge',
+    tone: 'Playful with an edge, curious energy',
+    tier1: ['#fyp','#foryou','#fansly','#fanslymodel'],
+    tier2: ['#blonde','#student','#girlnextdoor','#cute','#pov','#gfe','#tattoos','#fanslygirl','#aesthetic','#spicycontent','#fanslybabe','#alternativegirl'],
+    tier3: ['#petite','#skinny','#smalltits','#tiny','#naughty'],
+    rotation: [
+      '#fyp #foryou #fansly #fanslymodel #blonde #student #cute #aesthetic #fanslygirl #petite',
+      '#fyp #foryou #fansly #fanslymodel #girlnextdoor #pov #tattoos #fanslygirl #spicycontent #gfe',
+      '#fyp #foryou #fansly #fanslymodel #gfe #blonde #spicycontent #aesthetic #cute #fanslygirl #skinny',
+      '#fyp #foryou #fansly #fanslymodel #student #cute #pov #girlnextdoor #tattoos #spicycontent',
+      '#fyp #foryou #fansly #fanslymodel #tattoos #blonde #fanslygirl #aesthetic #gfe #student #smalltits',
+      '#fyp #foryou #fansly #fanslymodel #gfe #student #pov #spicycontent #cute #girlnextdoor',
+      '#fyp #foryou #fansly #fanslymodel #cute #girlnextdoor #blonde #aesthetic #fanslygirl #spicycontent #tiny',
+      '#fyp #foryou #fansly #fanslymodel #tattoos #pov #fanslygirl #student #gfe #blonde',
+      '#fyp #foryou #fansly #fanslymodel #gfe #blonde #spicycontent #cute #aesthetic #fanslygirl #naughty',
+      '#fyp #foryou #fansly #fanslymodel #girlnextdoor #aesthetic #pov #tattoos #student #spicycontent',
+      '#fyp #foryou #fansly #fanslymodel #student #fanslygirl #blonde #cute #aesthetic #gfe #petite',
+      '#fyp #foryou #fansly #fanslymodel #gfe #spicycontent #pov #girlnextdoor #tattoos #blonde',
+      '#fyp #foryou #fansly #fanslymodel #aesthetic #tattoos #blonde #cute #fanslygirl #spicycontent #skinny',
+      '#fyp #foryou #fansly #fanslymodel #student #pov #fanslygirl #spicycontent #girlnextdoor #gfe',
+    ]
+  },
+  lola: {
+    name: 'Lola',
+    identity: 'Latina · Petite · Brunette · Student',
+    tone: 'Confident, warm, a little spicy',
+    tier1: ['#fyp','#foryou','#fansly','#fanslymodel'],
+    tier2: ['#latina','#brunette','#student','#girlnextdoor','#cute','#pov','#fanslygirl','#spicycontent','#aesthetic','#petitegirl','#fanslybabe','#contentcreator'],
+    tier3: ['#petite','#slimgirl','#smalltits','#tiny','#tight'],
+    rotation: [
+      '#fyp #foryou #fansly #fanslymodel #latina #brunette #cute #aesthetic #fanslygirl #petite',
+      '#fyp #foryou #fansly #fanslymodel #girlnextdoor #pov #student #fanslygirl #spicycontent #latina',
+      '#fyp #foryou #fansly #fanslymodel #latina #spicycontent #aesthetic #cute #petitegirl #fanslygirl #slimgirl',
+      '#fyp #foryou #fansly #fanslymodel #brunette #student #pov #girlnextdoor #cute #spicycontent',
+      '#fyp #foryou #fansly #fanslymodel #latina #fanslygirl #petitegirl #aesthetic #brunette #student #smalltits',
+      '#fyp #foryou #fansly #fanslymodel #cute #spicycontent #pov #brunette #girlnextdoor #fanslygirl',
+      '#fyp #foryou #fansly #fanslymodel #girlnextdoor #latina #student #aesthetic #cute #spicycontent #tiny',
+      '#fyp #foryou #fansly #fanslymodel #fanslygirl #pov #brunette #spicycontent #latina #student',
+      '#fyp #foryou #fansly #fanslymodel #latina #cute #aesthetic #petitegirl #fanslygirl #brunette #tight',
+      '#fyp #foryou #fansly #fanslymodel #girlnextdoor #student #pov #fanslygirl #spicycontent #latina',
+      '#fyp #foryou #fansly #fanslymodel #brunette #latina #spicycontent #cute #petite #fanslygirl #slimgirl',
+      '#fyp #foryou #fansly #fanslymodel #aesthetic #pov #girlnextdoor #student #brunette #spicycontent',
+      '#fyp #foryou #fansly #fanslymodel #latina #fanslygirl #cute #aesthetic #petitegirl #brunette #slimgirl',
+      '#fyp #foryou #fansly #fanslymodel #brunette #spicycontent #pov #girlnextdoor #latina #student',
+    ]
+  },
+  grace: {
+    name: 'Grace',
+    identity: 'Latina · Booty · GFE · Brunette',
+    tone: 'Sultry but sweet, makes them feel wanted',
+    tier1: ['#fyp','#foryou','#fansly','#fanslymodel'],
+    tier2: ['#latina','#brunette','#girlnextdoor','#cute','#pov','#gfe','#nopants','#fanslygirl','#spicycontent','#contentcreator','#fanslybabe','#curvygirl'],
+    tier3: ['#bigbooty','#ass','#curvy','#thicc','#curvygirl'],
+    rotation: [
+      '#fyp #foryou #fansly #fanslymodel #latina #brunette #cute #gfe #fanslygirl #bigbooty',
+      '#fyp #foryou #fansly #fanslymodel #girlnextdoor #pov #nopants #fanslygirl #spicycontent #latina',
+      '#fyp #foryou #fansly #fanslymodel #latina #spicycontent #cute #gfe #brunette #fanslygirl #ass',
+      '#fyp #foryou #fansly #fanslymodel #brunette #pov #contentcreator #girlnextdoor #cute #spicycontent',
+      '#fyp #foryou #fansly #fanslymodel #nopants #latina #fanslygirl #cute #gfe #brunette #curvy',
+      '#fyp #foryou #fansly #fanslymodel #gfe #spicycontent #pov #brunette #girlnextdoor #fanslygirl',
+      '#fyp #foryou #fansly #fanslymodel #girlnextdoor #latina #cute #contentcreator #fanslygirl #spicycontent #thicc',
+      '#fyp #foryou #fansly #fanslymodel #nopants #pov #fanslygirl #spicycontent #gfe #latina',
+      '#fyp #foryou #fansly #fanslymodel #gfe #latina #cute #brunette #curvygirl #fanslygirl #bigbooty',
+      '#fyp #foryou #fansly #fanslymodel #girlnextdoor #pov #contentcreator #fanslygirl #brunette #spicycontent',
+      '#fyp #foryou #fansly #fanslymodel #nopants #latina #spicycontent #cute #gfe #fanslygirl #ass',
+      '#fyp #foryou #fansly #fanslymodel #brunette #gfe #pov #girlnextdoor #contentcreator #spicycontent',
+      '#fyp #foryou #fansly #fanslymodel #latina #fanslygirl #cute #contentcreator #brunette #spicycontent #curvy',
+      '#fyp #foryou #fansly #fanslymodel #nopants #spicycontent #pov #brunette #gfe #girlnextdoor',
+    ]
+  },
+  mia: {
+    name: 'Mia',
+    identity: 'Goth · Alt · Tattooed · Mysterious',
+    tone: 'Dark, mysterious, pulls them in with intrigue',
+    tier1: ['#fyp','#foryou','#fansly','#fanslymodel'],
+    tier2: ['#gothgirl','#altgirl','#tattoos','#egirl','#goth','#alternativegirl','#pov','#gfe','#nopants','#fanslygirl','#spicycontent','#inkedgirls'],
+    tier3: ['#bigbooty','#ass','#tattooed','#inkedgirls','#naughty'],
+    rotation: [
+      '#fyp #foryou #fansly #fanslymodel #gothgirl #altgirl #tattoos #egirl #fanslygirl #bigbooty',
+      '#fyp #foryou #fansly #fanslymodel #goth #pov #nopants #fanslygirl #spicycontent #alternativegirl',
+      '#fyp #foryou #fansly #fanslymodel #alternativegirl #gothgirl #spicycontent #gfe #tattooed #fanslygirl #inkedgirls',
+      '#fyp #foryou #fansly #fanslymodel #altgirl #pov #egirl #nopants #spicycontent #gothgirl',
+      '#fyp #foryou #fansly #fanslymodel #gothgirl #tattoos #gfe #spicycontent #altgirl #fanslygirl #inkedgirls',
+      '#fyp #foryou #fansly #fanslymodel #alternativegirl #pov #fanslygirl #goth #egirl #spicycontent',
+      '#fyp #foryou #fansly #fanslymodel #altgirl #egirl #nopants #tattoos #gothgirl #fanslygirl #ass',
+      '#fyp #foryou #fansly #fanslymodel #gothgirl #spicycontent #pov #gfe #alternativegirl #fanslygirl',
+      '#fyp #foryou #fansly #fanslymodel #alternativegirl #tattoos #egirl #fanslygirl #goth #spicycontent #naughty',
+      '#fyp #foryou #fansly #fanslymodel #goth #pov #nopants #spicycontent #altgirl #gothgirl',
+      '#fyp #foryou #fansly #fanslymodel #gothgirl #altgirl #gfe #tattoos #fanslygirl #spicycontent #bigbooty',
+      '#fyp #foryou #fansly #fanslymodel #alternativegirl #pov #egirl #fanslygirl #inkedgirls #goth',
+      '#fyp #foryou #fansly #fanslymodel #inkedgirls #gothgirl #spicycontent #goth #tattooed #fanslygirl #altgirl',
+      '#fyp #foryou #fansly #fanslymodel #altgirl #pov #nopants #gfe #spicycontent #gothgirl',
+    ]
+  }
+};
+
+// Load/save hashtag rotation tracking from localStorage
+function getHashtagLog() {
+  try { return JSON.parse(localStorage.getItem('htag-log') || '{}'); } catch(e) { return {}; }
+}
+function saveHashtagLog(log) {
+  localStorage.setItem('htag-log', JSON.stringify(log));
+}
+
+function buildHashtagPanels() {
+  const container = document.getElementById('hashtag-panels');
+  if (!container) return;
+  container.innerHTML = '';
+  const log = getHashtagLog();
+
+  Object.keys(HASHTAG_DATA).forEach(key => {
+    const c = HASHTAG_DATA[key];
+    const tierColors = ['tier1','tier2','tier3'];
+    const tierLabels = ['Tier 1 — Always-On','Tier 2 — Niche & Personality','Tier 3 — Body / Feature'];
+    const tierNotes = ['Use in every post without exception','Pick 3–4 per post, rotate from bank','Pick 1 every other post only'];
+    const tiers = [c.tier1, c.tier2, c.tier3];
+
+    const tiersHTML = tiers.map((tags, i) => `
+      <div class="htag-tier-block">
+        <div class="htag-tier-header" style="background:${i===0?'#f5f0e8':i===1?'#ede5d8':'#e8d5bc'};">
+          <span>${tierLabels[i]}</span>
+          <span class="htag-tier-note">${tierNotes[i]}</span>
+        </div>
+        <div class="htag-tier-tags">
+          ${tags.map(t => `<span class="htag-tag ${tierColors[i]}" onclick="copyText('${t}',this)" title="Click to copy">${t}</span>`).join('')}
+        </div>
+      </div>
+    `).join('');
+
+    const rotationHTML = c.rotation.map((set, i) => {
+      const rowKey = `${key}-${i}`;
+      const entry = log[rowKey] || {};
+      const done = entry.done || false;
+      const date = entry.date || '';
+      const postNum = entry.postNum || '';
+      const escapedSet = set.replace(/'/g, "\\'");
+      return `
+        <tr id="hrow-${rowKey}" class="${done ? 'htag-row-done' : ''}">
+          <td class="htag-post-num">${i+1}</td>
+          <td style="font-size:11px;color:var(--muted);white-space:nowrap;">Post ${i+1}</td>
+          <td style="font-family:monospace;font-size:11px;line-height:1.7;">${set}</td>
+          <td style="text-align:center;width:44px;">
+            <button class="htag-check-btn ${done ? 'checked' : ''}" onclick="toggleHashtagDone('${rowKey}', '${key}', this)" title="${done ? 'Mark as unused' : 'Mark as used'}">
+              ${done ? '✓' : '○'}
+            </button>
+          </td>
+          <td style="width:120px;">
+            <input type="date" class="htag-date-input" value="${date}" onchange="saveHashtagEntry('${rowKey}','date',this.value)" title="Date used" ${done ? '' : 'placeholder="Date used"'}>
+          </td>
+          <td style="width:110px;">
+            <input type="text" class="htag-postnum-input" value="${postNum}" onchange="saveHashtagEntry('${rowKey}','postNum',this.value)" placeholder="Post # / ID" title="Which post this was used on">
+          </td>
+          <td style="text-align:right;padding-right:12px;">
+            <button class="htag-copy-btn" onclick="copyHashtagSet('${escapedSet}',this)">Copy</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Count used rows
+    const usedCount = c.rotation.filter((_, i) => (log[`${key}-${i}`] || {}).done).length;
+
+    container.innerHTML += `
+      <div class="htag-creator-panel ${key === 'josie' ? 'active' : ''}" id="hpanel-${key}">
+        <div class="htag-identity">${c.identity} · ${c.tone}</div>
+
+        <div class="htag-section-title">Hashtag Bank</div>
+        ${tiersHTML}
+
+        <div class="htag-section-title" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>14-Post Daily Rotation</span>
+          <span style="font-size:11px;color:var(--muted);font-family:'Jost',sans-serif;font-weight:400;">
+            <span id="hused-${key}" style="color:var(--accent);font-weight:600;">${usedCount}</span> / 14 used
+            &nbsp;·&nbsp;
+            <button onclick="clearHashtagLog('${key}')" style="font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;font-family:'Jost',sans-serif;">Reset</button>
+          </span>
+        </div>
+        <div style="border:1px solid var(--border);border-radius:3px;overflow:hidden;">
+          <table class="htag-rotation-table">
+            <thead>
+              <tr>
+                <th style="width:36px;">#</th>
+                <th style="width:55px;">Post</th>
+                <th>Hashtags — copy & paste directly</th>
+                <th style="width:44px;text-align:center;">✓</th>
+                <th style="width:120px;">Date Used</th>
+                <th style="width:110px;">Post # / ID</th>
+                <th style="width:70px;"></th>
+              </tr>
+            </thead>
+            <tbody id="htbody-${key}">${rotationHTML}</tbody>
+          </table>
+          <div class="htag-loop-note">↻ After Post 14, reset and loop back to Post 1</div>
+        </div>
+      </div>
+    `;
+  });
+}
+
+function toggleHashtagDone(rowKey, creatorKey, btn) {
+  const log = getHashtagLog();
+  const entry = log[rowKey] || {};
+  entry.done = !entry.done;
+  // Auto-fill today's date if marking as done and no date set
+  if (entry.done && !entry.date) {
+    entry.date = new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Manila'});
+    const dateInput = document.querySelector(`#hrow-${rowKey} .htag-date-input`);
+    if (dateInput) dateInput.value = entry.date;
+  }
+  log[rowKey] = entry;
+  saveHashtagLog(log);
+
+  const row = document.getElementById('hrow-' + rowKey);
+  if (row) row.classList.toggle('htag-row-done', entry.done);
+  btn.textContent = entry.done ? '✓' : '○';
+  btn.classList.toggle('checked', entry.done);
+  btn.title = entry.done ? 'Mark as unused' : 'Mark as used';
+
+  // Update used count
+  const creatorData = HASHTAG_DATA[creatorKey];
+  const usedCount = creatorData.rotation.filter((_, i) => (log[`${creatorKey}-${i}`] || {}).done).length;
+  const countEl = document.getElementById('hused-' + creatorKey);
+  if (countEl) countEl.textContent = usedCount;
+}
+
+function saveHashtagEntry(rowKey, field, value) {
+  const log = getHashtagLog();
+  if (!log[rowKey]) log[rowKey] = {};
+  log[rowKey][field] = value;
+  saveHashtagLog(log);
+}
+
+function clearHashtagLog(creatorKey) {
+  if (!confirm(`Reset all usage tracking for ${HASHTAG_DATA[creatorKey].name}?`)) return;
+  const log = getHashtagLog();
+  HASHTAG_DATA[creatorKey].rotation.forEach((_, i) => { delete log[`${creatorKey}-${i}`]; });
+  saveHashtagLog(log);
+  buildHashtagPanels();
+  showHashtagCreator(creatorKey);
+}
+
+function showHashtagCreator(key) {
+  document.querySelectorAll('.htag-creator-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.htag-creator-btn').forEach(b => b.classList.remove('active'));
+  const panel = document.getElementById('hpanel-' + key);
+  const btn = document.getElementById('hbtn-' + key);
+  if (panel) panel.classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+
+function copyHashtagSet(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1800);
+  });
+}
+
+function copyText(text, el) {
+  navigator.clipboard.writeText(text).then(() => {
+    el.style.background = 'var(--text)';
+    el.style.color = '#faf7f4';
+    el.style.borderColor = 'var(--text)';
+    setTimeout(() => { el.style.background = ''; el.style.color = ''; el.style.borderColor = ''; }, 1000);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', buildHashtagPanels);
+</script>
+
 <!-- STATS MODAL -->
 <div class="modal-overlay" id="statsModalOverlay">
   <div class="modal" style="width:500px;">
@@ -2023,6 +2530,16 @@
       <div class="lb-time" id="lbTime"></div>
       <div class="lb-reel" id="lbReel"></div>
       <div class="lb-caption" id="lbCaption"></div>
+
+      <!-- HASHTAG DISPLAY -->
+      <div id="lbHashtagBlock" style="display:none;margin-top:20px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.1);">
+        <div style="font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.35);margin-bottom:8px;">Hashtags Used</div>
+        <div id="lbHashtagSet" style="font-size:11px;line-height:1.9;color:rgba(255,255,255,0.75);font-family:monospace;"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
+          <span id="lbHashtagRotNum" style="font-size:10px;color:var(--accent);letter-spacing:0.5px;"></span>
+          <button onclick="copyLbHashtags()" style="font-size:10px;letter-spacing:1px;text-transform:uppercase;border:1px solid rgba(255,255,255,0.2);background:none;color:rgba(255,255,255,0.5);padding:4px 10px;cursor:pointer;border-radius:2px;font-family:'Jost',sans-serif;transition:all 0.15s;" id="lbHashtagCopyBtn">Copy</button>
+        </div>
+      </div>
       <div style="display:flex;gap:10px;margin-top:24px;">
         <button class="lb-edit" onclick="openEditMode()">✏️ Edit</button>
         <button class="lb-delete" id="lbDelete" onclick="deletePost()">🗑 Delete</button>
@@ -3056,7 +3573,65 @@ function openLightbox(idx) {
   document.getElementById('lbDelete').style.display = canEdit ? 'inline-block' : 'none';
   document.querySelector('.lb-edit').style.display = canEdit ? 'inline-block' : 'none';
 
+  // --- HASHTAG LOOKUP ---
+  const hashtagBlock = document.getElementById('lbHashtagBlock');
+  const hashtagSetEl = document.getElementById('lbHashtagSet');
+  const hashtagRotNum = document.getElementById('lbHashtagRotNum');
+  const postId = String(post.id || '');
+  const postReel = String(post.reel || '');
+
+  // Match by post ID or reel number stored in the rotation log
+  const log = getHashtagLog();
+  const creatorKey = post.model ? post.model.toLowerCase() : '';
+  const creatorData = HASHTAG_DATA[creatorKey];
+  let matched = null;
+  let matchedRotIdx = null;
+
+  if (creatorData) {
+    // Search log entries for this creator where postNum matches post.id or post.reel
+    for (let i = 0; i < creatorData.rotation.length; i++) {
+      const entry = log[`${creatorKey}-${i}`];
+      if (entry && entry.done && entry.postNum &&
+          (String(entry.postNum) === postId || String(entry.postNum) === postReel)) {
+        matched = creatorData.rotation[i];
+        matchedRotIdx = i + 1;
+        break;
+      }
+    }
+    // If no match by post ID, show the most recently used (highest done index)
+    if (!matched) {
+      for (let i = creatorData.rotation.length - 1; i >= 0; i--) {
+        const entry = log[`${creatorKey}-${i}`];
+        if (entry && entry.done) {
+          matched = creatorData.rotation[i];
+          matchedRotIdx = i + 1;
+          break;
+        }
+      }
+    }
+  }
+
+  if (matched) {
+    hashtagSetEl.textContent = matched;
+    hashtagRotNum.textContent = `Rotation #${matchedRotIdx} of 14`;
+    hashtagBlock.style.display = 'block';
+  } else {
+    hashtagBlock.style.display = 'none';
+  }
+
   document.getElementById('lightbox').classList.add('open');
+}
+
+function copyLbHashtags() {
+  const text = document.getElementById('lbHashtagSet').textContent;
+  if (!text) return;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('lbHashtagCopyBtn');
+    btn.textContent = 'Copied!';
+    btn.style.color = 'var(--accent)';
+    btn.style.borderColor = 'var(--accent)';
+    setTimeout(() => { btn.textContent = 'Copy'; btn.style.color = ''; btn.style.borderColor = ''; }, 1800);
+  });
 }
 
 function closeLightbox(e) {
@@ -3086,6 +3661,7 @@ function switchTab(tab) {
   document.getElementById('statsBar').style.display = tab === 'feed' ? 'flex' : 'none';
   if (tab === 'tracker') renderTracker();
   if (tab === 'analytics') renderAnalytics();
+  if (tab === 'hashtag') buildHashtagPanels();
 }
 
 function renderTracker() {
