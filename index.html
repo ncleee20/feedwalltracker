@@ -2942,8 +2942,8 @@ function renderFeed() {
 
   const sortedDates = Object.keys(groups).sort((a, b) => b.localeCompare(a));
 
-  // First date open by default
-  const openDate = sortedDates[0];
+  // All dates collapsed by default
+  const openDate = null;
 
   let html = '<div style="padding:0 32px;max-width:1400px;margin:0 auto;">';
 
