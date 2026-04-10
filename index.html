@@ -3973,6 +3973,7 @@ async function deleteStat(id) {
     if (error) throw error;
     postStats = postStats.filter(s => s.id !== id);
     renderAnalytics();
+    renderHashtagPerformance();
     showToast('Stat deleted');
   } catch(e) {
     showToast('Delete failed', 'error');
