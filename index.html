@@ -1881,6 +1881,7 @@
           <th>Date</th>
           <th>Model</th>
           <th>Reel #</th>
+          <th>Hashtag Set</th>
           <th>👁️ Views</th>
           <th>❤️ Likes</th>
           <th>#️⃣ Hashtag Reach</th>
@@ -1890,6 +1891,18 @@
       </thead>
       <tbody id="analyticsBody"></tbody>
     </table>
+
+    <!-- Hashtag Performance Section -->
+    <div class="analytics-section-title" style="margin-top:40px;display:flex;justify-content:space-between;align-items:center;">
+      <span>#️⃣ Hashtag Rotation Performance</span>
+      <select id="hashperfModelFilter" onchange="renderHashtagPerformance()" style="font-size:11px;padding:6px 10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-family:'Jost',sans-serif;border-radius:2px;outline:none;">
+        <option value="all">All Models</option>
+      </select>
+    </div>
+    <div id="hashperfEmpty" style="display:none;text-align:center;padding:32px;color:var(--muted);font-family:'Cormorant Garamond',serif;font-size:16px;font-style:italic;">
+      Log stats with a hashtag rotation selected to see performance rankings
+    </div>
+    <div id="hashperfGrid" style="display:none;"></div>
 
   </div>
 </div>
@@ -3660,7 +3673,7 @@ function switchTab(tab) {
   document.getElementById('tab' + tab.charAt(0).toUpperCase() + tab.slice(1) + 'Btn').classList.add('active');
   document.getElementById('statsBar').style.display = tab === 'feed' ? 'flex' : 'none';
   if (tab === 'tracker') renderTracker();
-  if (tab === 'analytics') renderAnalytics();
+  if (tab === 'analytics') { renderAnalytics(); renderHashtagPerformance(); }
   if (tab === 'hashtag') buildHashtagPanels();
 }
 
@@ -3886,6 +3899,29 @@ function autofillStatsFromPost() {
   document.getElementById('statsDate').value = post.date || '';
 }
 
+// Silently resolve which hashtag rotation was used for a post
+function resolveRotationKey(post) {
+  if (!post) return null;
+  const creatorKey = post.model ? post.model.toLowerCase() : null;
+  if (!creatorKey || !HASHTAG_DATA[creatorKey]) return null;
+  const log = getHashtagLog();
+  for (let i = 0; i < HASHTAG_DATA[creatorKey].rotation.length; i++) {
+    const entry = log[`${creatorKey}-${i}`];
+    if (entry && entry.postNum && (
+      String(entry.postNum) === String(post.id) ||
+      String(entry.postNum) === String(post.reel)
+    )) {
+      return `${creatorKey}-${i}`;
+    }
+  }
+  // Fallback: most recently checked rotation for this creator
+  for (let i = HASHTAG_DATA[creatorKey].rotation.length - 1; i >= 0; i--) {
+    const entry = log[`${creatorKey}-${i}`];
+    if (entry && entry.done) return `${creatorKey}-${i}`;
+  }
+  return null;
+}
+
 async function saveStats() {
   const model = document.getElementById('statsModel').value;
   const reel = document.getElementById('statsReel').value;
@@ -3896,6 +3932,10 @@ async function saveStats() {
   const hashtag_reach = parseInt(document.getElementById('statsHashtag').value) || 0;
   const notes = document.getElementById('statsNotes').value;
   const post_id = document.getElementById('statsPostSelect').value || null;
+
+  // Auto-resolve rotation key from hashtag bank log — no manual input needed
+  const post = post_id ? posts.find(p => String(p.id) === String(post_id)) : null;
+  const hashtag_rotation_key = resolveRotationKey(post || { model, reel, id: post_id });
 
   if (!model || !date) {
     showToast('Please fill in Model and Date', 'error');
@@ -3909,7 +3949,8 @@ async function saveStats() {
   try {
     const { data, error } = await sbClient.from(TABLE_STATS).insert({
       model, reel, stat_date: date, platform, views, likes, hashtag_reach, notes,
-      post_id: post_id ? parseInt(post_id) : null
+      post_id: post_id ? parseInt(post_id) : null,
+      hashtag_rotation_key: hashtag_rotation_key || null
     }).select().single();
     if (error) throw error;
 
@@ -4048,10 +4089,23 @@ function renderAnalytics() {
   tbody.innerHTML = filtered.map(r => {
     const likeRate = r.views > 0 ? ((r.likes/r.views)*100).toFixed(1) : '0.0';
     const rateClass = parseFloat(likeRate) >= 5 ? 'like-rate-high' : parseFloat(likeRate) >= 2 ? 'like-rate-mid' : 'like-rate-low';
+    // Lookup hashtag set from rotation log
+    let hashtagCell = '<span style="color:var(--muted);font-size:11px;">—</span>';
+    if (r.hashtag_rotation_key) {
+      const creatorKey = r.model ? r.model.toLowerCase() : '';
+      const creatorData = HASHTAG_DATA[creatorKey];
+      const parts = r.hashtag_rotation_key.split('-');
+      const rotIdx = parseInt(parts[parts.length - 1]);
+      if (creatorData && creatorData.rotation[rotIdx] !== undefined) {
+        const shortSet = creatorData.rotation[rotIdx].split(' ').slice(4, 8).join(' ') + '...';
+        hashtagCell = `<span title="${creatorData.rotation[rotIdx]}" style="font-size:10px;font-family:monospace;color:var(--accent-dark);cursor:help;">Rot. #${rotIdx+1} · ${shortSet}</span>`;
+      }
+    }
     return `<tr>
       <td style="color:var(--muted);font-size:12px;">${r.stat_date || '—'}</td>
       <td><span style="background:var(--text);color:#fff;font-size:9px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:1px;">${r.model}</span></td>
       <td style="color:var(--accent-dark);font-weight:600;font-size:12px;">#${r.reel || '—'}</td>
+      <td>${hashtagCell}</td>
       <td><span class="stat-views">${formatNum(r.views)}</span></td>
       <td><span class="stat-likes">${formatNum(r.likes)}</span></td>
       <td><span class="stat-hashtag">${formatNum(r.hashtag_reach)}</span></td>
@@ -4059,6 +4113,117 @@ function renderAnalytics() {
       <td>${canEdit ? `<button class="stat-del-btn" onclick="deleteStat(${r.id})">🗑</button>` : ''}</td>
     </tr>`;
   }).join('');
+
+  renderHashtagPerformance();
+}
+
+// ============================================================
+// HASHTAG PERFORMANCE
+// ============================================================
+function renderHashtagPerformance() {
+  const filterModel = document.getElementById('hashperfModelFilter') ?
+    document.getElementById('hashperfModelFilter').value : 'all';
+
+  // Sync model filter options
+  const hpSel = document.getElementById('hashperfModelFilter');
+  if (hpSel) {
+    const cur = hpSel.value;
+    hpSel.innerHTML = '<option value="all">All Models</option>';
+    models.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m; opt.textContent = m;
+      hpSel.appendChild(opt);
+    });
+    hpSel.value = cur || 'all';
+  }
+
+  const grid = document.getElementById('hashperfGrid');
+  const empty = document.getElementById('hashperfEmpty');
+  if (!grid || !empty) return;
+
+  // Filter stats that have a rotation key
+  const relevant = postStats.filter(r =>
+    r.hashtag_rotation_key &&
+    (filterModel === 'all' || r.model === filterModel)
+  );
+
+  if (relevant.length === 0) {
+    grid.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+
+  // Group by rotation key → aggregate views, likes, count
+  const grouped = {};
+  relevant.forEach(r => {
+    const key = r.hashtag_rotation_key;
+    if (!grouped[key]) grouped[key] = { views: 0, likes: 0, count: 0, key };
+    grouped[key].views += r.views || 0;
+    grouped[key].likes += r.likes || 0;
+    grouped[key].count++;
+  });
+
+  // Sort by avg views descending
+  const sorted = Object.values(grouped).sort((a, b) =>
+    (b.views / b.count) - (a.views / a.count)
+  );
+
+  const maxAvgViews = sorted[0] ? sorted[0].views / sorted[0].count : 1;
+
+  grid.style.display = 'block';
+  empty.style.display = 'none';
+
+  grid.innerHTML = `
+    <div style="border:1px solid var(--border);border-radius:3px;overflow:hidden;">
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:var(--bg);">
+            <th style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:600;padding:10px 16px;border-bottom:2px solid var(--accent);text-align:left;width:36px;">Rank</th>
+            <th style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:600;padding:10px 16px;border-bottom:2px solid var(--accent);text-align:left;">Rotation Set</th>
+            <th style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:600;padding:10px 16px;border-bottom:2px solid var(--accent);text-align:left;width:100px;">Avg Views</th>
+            <th style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:600;padding:10px 16px;border-bottom:2px solid var(--accent);text-align:left;width:100px;">Avg Likes</th>
+            <th style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:600;padding:10px 16px;border-bottom:2px solid var(--accent);text-align:left;width:60px;">Uses</th>
+            <th style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);font-weight:600;padding:10px 16px;border-bottom:2px solid var(--accent);text-align:left;width:80px;">Rating</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${sorted.map((item, i) => {
+            const parts = item.key.split('-');
+            const rotIdx = parseInt(parts[parts.length - 1]);
+            const cKey = parts.slice(0, parts.length - 1).join('-');
+            const cData = HASHTAG_DATA[cKey];
+            const avgViews = Math.round(item.views / item.count);
+            const avgLikes = Math.round(item.likes / item.count);
+            const pct = maxAvgViews > 0 ? (avgViews / maxAvgViews) * 100 : 0;
+            const isTop = i < Math.ceil(sorted.length * 0.3);
+            const isBottom = i >= Math.floor(sorted.length * 0.7) && sorted.length >= 3;
+            const rating = isTop ? '🟢 Keep' : isBottom ? '🔴 Swap' : '🟡 Watch';
+            const shortTags = cData ? cData.rotation[rotIdx].split(' ').slice(4).join(' ') : item.key;
+            const bgRow = i % 2 === 0 ? '#fff' : 'var(--bg)';
+            return `
+              <tr style="background:${bgRow};">
+                <td style="padding:14px 16px;font-weight:700;color:var(--accent);font-size:14px;border-bottom:1px solid var(--border);">${i+1}</td>
+                <td style="padding:14px 16px;border-bottom:1px solid var(--border);">
+                  <div style="font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:1px;">${cData ? cData.name : cKey} · Rotation #${rotIdx+1}</div>
+                  <div style="font-size:11px;font-family:monospace;color:var(--text);line-height:1.6;">${shortTags}</div>
+                  <div style="margin-top:6px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;">
+                    <div style="height:100%;width:${pct}%;background:${isTop?'#5a9e6f':isBottom?'#b85c5c':'var(--accent)'};border-radius:2px;transition:width 0.4s;"></div>
+                  </div>
+                </td>
+                <td style="padding:14px 16px;border-bottom:1px solid var(--border);font-weight:600;font-size:14px;">${formatNum(avgViews)}</td>
+                <td style="padding:14px 16px;border-bottom:1px solid var(--border);color:var(--muted);font-size:13px;">${formatNum(avgLikes)}</td>
+                <td style="padding:14px 16px;border-bottom:1px solid var(--border);color:var(--muted);font-size:12px;">${item.count}×</td>
+                <td style="padding:14px 16px;border-bottom:1px solid var(--border);font-size:12px;">${rating}</td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+      <div style="padding:12px 16px;background:var(--bg);border-top:1px solid var(--border);font-size:10px;color:var(--muted);font-style:italic;">
+        🟢 Top 30% by avg views — keep these · 🟡 Middle — monitor · 🔴 Bottom 30% — swap out at next cycle reset
+      </div>
+    </div>
+  `;
 }
 
 // ============================================================
