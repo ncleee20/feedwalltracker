@@ -3653,26 +3653,21 @@ function openLightbox(idx) {
   let matchedRotIdx = null;
 
   if (creatorData) {
-    // Search log entries for this creator where postNum matches post.id or post.reel
+    const log = getHashtagLog();
     for (let i = 0; i < creatorData.rotation.length; i++) {
-      const entry = log[`${creatorKey}-${i}`];
-      if (entry && entry.done && entry.postNum &&
-          (String(entry.postNum) === postId || String(entry.postNum) === postReel)) {
-        matched = creatorData.rotation[i];
-        matchedRotIdx = i + 1;
-        break;
-      }
-    }
-    // If no match by post ID, show the most recently used (highest done index)
-    if (!matched) {
-      for (let i = creatorData.rotation.length - 1; i >= 0; i--) {
-        const entry = log[`${creatorKey}-${i}`];
-        if (entry && entry.done) {
+      const entry = log[`${creatorKey}-${i}`] || {};
+      const uses = entry.uses || (entry.done ? [{ date: entry.date || '', postNum: entry.postNum || '', cycle: 1 }] : []);
+      for (const use of uses) {
+        if (use.postNum && (
+          String(use.postNum) === String(post.id) ||
+          String(use.postNum) === String(post.reel)
+        )) {
           matched = creatorData.rotation[i];
           matchedRotIdx = i + 1;
           break;
         }
       }
+      if (matched) break;
     }
   }
 
@@ -3958,18 +3953,16 @@ function resolveRotationKey(post) {
   if (!creatorKey || !HASHTAG_DATA[creatorKey]) return null;
   const log = getHashtagLog();
   for (let i = 0; i < HASHTAG_DATA[creatorKey].rotation.length; i++) {
-    const entry = log[`${creatorKey}-${i}`];
-    if (entry && entry.postNum && (
-      String(entry.postNum) === String(post.id) ||
-      String(entry.postNum) === String(post.reel)
-    )) {
-      return `${creatorKey}-${i}`;
+    const entry = log[`${creatorKey}-${i}`] || {};
+    const uses = entry.uses || (entry.done ? [{ postNum: entry.postNum || '' }] : []);
+    for (const use of uses) {
+      if (use.postNum && (
+        String(use.postNum) === String(post.id) ||
+        String(use.postNum) === String(post.reel)
+      )) {
+        return `${creatorKey}-${i}`;
+      }
     }
-  }
-  // Fallback: most recently checked rotation for this creator
-  for (let i = HASHTAG_DATA[creatorKey].rotation.length - 1; i >= 0; i--) {
-    const entry = log[`${creatorKey}-${i}`];
-    if (entry && entry.done) return `${creatorKey}-${i}`;
   }
   return null;
 }
