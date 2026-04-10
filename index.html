@@ -2275,35 +2275,54 @@ function buildHashtagPanels() {
     const rotationHTML = c.rotation.map((set, i) => {
       const rowKey = `${key}-${i}`;
       const entry = log[rowKey] || {};
-      const done = entry.done || false;
-      const date = entry.date || '';
-      const postNum = entry.postNum || '';
+      // Support multi-cycle: uses is array of {date, postNum, cycle}
+      const uses = entry.uses || (entry.done ? [{ date: entry.date || '', postNum: entry.postNum || '', cycle: 1 }] : []);
+      const currentCycle = (entry.cycle || 1);
+      const usedThisCycle = uses.some(u => u.cycle === currentCycle);
       const escapedSet = set.replace(/'/g, "\\'");
+
+      const usesHistoryHTML = uses.length > 0 ? `
+        <div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;">
+          ${uses.map(u => `
+            <div style="font-size:10px;color:var(--muted);display:flex;gap:8px;align-items:center;">
+              <span style="color:var(--accent);font-weight:600;">C${u.cycle}</span>
+              <span>${u.date || '—'}</span>
+              <span style="color:var(--text);">${u.postNum ? '· Post #' + u.postNum : ''}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : '';
+
       return `
-        <tr id="hrow-${rowKey}" class="${done ? 'htag-row-done' : ''}">
+        <tr id="hrow-${rowKey}" class="${usedThisCycle ? 'htag-row-done' : ''}">
           <td class="htag-post-num">${i+1}</td>
           <td style="font-size:11px;color:var(--muted);white-space:nowrap;">Post ${i+1}</td>
           <td style="font-family:monospace;font-size:11px;line-height:1.7;">${set}</td>
           <td style="text-align:center;width:44px;">
-            <button class="htag-check-btn ${done ? 'checked' : ''}" onclick="toggleHashtagDone('${rowKey}', '${key}', this)" title="${done ? 'Mark as unused' : 'Mark as used'}">
-              ${done ? '✓' : '○'}
+            <button class="htag-check-btn ${usedThisCycle ? 'checked' : ''}" onclick="toggleHashtagDone('${rowKey}', '${key}', this)" title="${usedThisCycle ? 'Mark as unused' : 'Mark as used'}">
+              ${usedThisCycle ? '✓' : '○'}
             </button>
           </td>
-          <td style="width:120px;">
-            <input type="date" class="htag-date-input" value="${date}" onchange="saveHashtagEntry('${rowKey}','date',this.value)" title="Date used" ${done ? '' : 'placeholder="Date used"'}>
+          <td style="width:200px;">
+            <input type="date" class="htag-date-input" id="hdate-${rowKey}" title="Date used this cycle">
+            <input type="text" class="htag-postnum-input" id="hpostnum-${rowKey}" placeholder="Post # / ID" title="Post ID for this cycle" style="margin-top:4px;">
+            ${usesHistoryHTML}
           </td>
-          <td style="width:110px;">
-            <input type="text" class="htag-postnum-input" value="${postNum}" onchange="saveHashtagEntry('${rowKey}','postNum',this.value)" placeholder="Post # / ID" title="Which post this was used on">
-          </td>
-          <td style="text-align:right;padding-right:12px;">
-            <button class="htag-copy-btn" onclick="copyHashtagSet('${escapedSet}',this)">Copy</button>
+          <td style="text-align:right;padding-right:12px;white-space:nowrap;">
+            <span style="font-size:9px;color:var(--muted);letter-spacing:0.5px;">C${currentCycle}</span>
+            <button class="htag-copy-btn" onclick="copyHashtagSet('${escapedSet}',this)" style="margin-left:6px;">Copy</button>
           </td>
         </tr>
       `;
     }).join('');
 
-    // Count used rows
-    const usedCount = c.rotation.filter((_, i) => (log[`${key}-${i}`] || {}).done).length;
+    // Count used rows this cycle
+    const currentCycle = log[`${key}-cycle`] || 1;
+    const usedCount = c.rotation.filter((_, i) => {
+      const entry = log[`${key}-${i}`] || {};
+      const uses = entry.uses || (entry.done ? [{ cycle: 1 }] : []);
+      return uses.some(u => u.cycle === currentCycle);
+    }).length;
 
     container.innerHTML += `
       <div class="htag-creator-panel ${key === 'josie' ? 'active' : ''}" id="hpanel-${key}">
@@ -2313,11 +2332,11 @@ function buildHashtagPanels() {
         ${tiersHTML}
 
         <div class="htag-section-title" style="display:flex;justify-content:space-between;align-items:center;">
-          <span>14-Post Daily Rotation</span>
+          <span>14-Post Daily Rotation <span style="font-size:12px;color:var(--accent);font-family:'Jost',sans-serif;font-weight:500;">· Cycle ${currentCycle}</span></span>
           <span style="font-size:11px;color:var(--muted);font-family:'Jost',sans-serif;font-weight:400;">
             <span id="hused-${key}" style="color:var(--accent);font-weight:600;">${usedCount}</span> / 14 used
             &nbsp;·&nbsp;
-            <button onclick="clearHashtagLog('${key}')" style="font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;font-family:'Jost',sans-serif;">Reset</button>
+            <button onclick="startNewCycle('${key}')" style="font-size:10px;color:var(--muted);background:none;border:none;cursor:pointer;text-decoration:underline;font-family:'Jost',sans-serif;">Start New Cycle</button>
           </span>
         </div>
         <div style="border:1px solid var(--border);border-radius:3px;overflow:hidden;">
@@ -2335,7 +2354,7 @@ function buildHashtagPanels() {
             </thead>
             <tbody id="htbody-${key}">${rotationHTML}</tbody>
           </table>
-          <div class="htag-loop-note">↻ After Post 14, reset and loop back to Post 1</div>
+          <div class="htag-loop-note">↻ After Post 14, click "Start New Cycle" to begin Cycle ${currentCycle + 1} — past entries are preserved</div>
         </div>
       </div>
     `;
@@ -2345,27 +2364,35 @@ function buildHashtagPanels() {
 function toggleHashtagDone(rowKey, creatorKey, btn) {
   const log = getHashtagLog();
   const entry = log[rowKey] || {};
-  entry.done = !entry.done;
-  // Auto-fill today's date if marking as done and no date set
-  if (entry.done && !entry.date) {
-    entry.date = new Date().toLocaleDateString('en-CA', {timeZone: 'Asia/Manila'});
-    const dateInput = document.querySelector(`#hrow-${rowKey} .htag-date-input`);
-    if (dateInput) dateInput.value = entry.date;
+  const currentCycle = log[`${creatorKey}-cycle`] || 1;
+  let uses = entry.uses || (entry.done ? [{ date: entry.date || '', postNum: entry.postNum || '', cycle: 1 }] : []);
+
+  const existingIdx = uses.findIndex(u => u.cycle === currentCycle);
+  const isUsedThisCycle = existingIdx !== -1;
+
+  if (isUsedThisCycle) {
+    // Unmark — remove this cycle's entry
+    uses.splice(existingIdx, 1);
+  } else {
+    // Mark as used — add entry for this cycle with today's date
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+    const dateInput = document.getElementById(`hdate-${rowKey}`);
+    const postnumInput = document.getElementById(`hpostnum-${rowKey}`);
+    const date = (dateInput && dateInput.value) ? dateInput.value : today;
+    const postNum = (postnumInput && postnumInput.value) ? postnumInput.value : '';
+    if (dateInput) dateInput.value = date;
+    uses.push({ date, postNum, cycle: currentCycle });
   }
+
+  entry.uses = uses;
+  entry.done = uses.length > 0;
+  entry.cycle = currentCycle;
   log[rowKey] = entry;
   saveHashtagLog(log);
 
-  const row = document.getElementById('hrow-' + rowKey);
-  if (row) row.classList.toggle('htag-row-done', entry.done);
-  btn.textContent = entry.done ? '✓' : '○';
-  btn.classList.toggle('checked', entry.done);
-  btn.title = entry.done ? 'Mark as unused' : 'Mark as used';
-
-  // Update used count
-  const creatorData = HASHTAG_DATA[creatorKey];
-  const usedCount = creatorData.rotation.filter((_, i) => (log[`${creatorKey}-${i}`] || {}).done).length;
-  const countEl = document.getElementById('hused-' + creatorKey);
-  if (countEl) countEl.textContent = usedCount;
+  // Refresh just this creator's panel
+  buildHashtagPanels();
+  showHashtagCreator(creatorKey);
 }
 
 function saveHashtagEntry(rowKey, field, value) {
@@ -2375,10 +2402,35 @@ function saveHashtagEntry(rowKey, field, value) {
   saveHashtagLog(log);
 }
 
+function startNewCycle(creatorKey) {
+  const usedCount = HASHTAG_DATA[creatorKey].rotation.filter((_, i) => {
+    const log = getHashtagLog();
+    const entry = log[`${creatorKey}-${i}`] || {};
+    const currentCycle = log[`${creatorKey}-cycle`] || 1;
+    const uses = entry.uses || (entry.done ? [{ cycle: 1 }] : []);
+    return uses.some(u => u.cycle === currentCycle);
+  }).length;
+
+  if (usedCount < 14) {
+    if (!confirm(`Only ${usedCount}/14 posts are checked off for ${HASHTAG_DATA[creatorKey].name}. Start new cycle anyway?`)) return;
+  } else {
+    if (!confirm(`Start Cycle ${(getHashtagLog()[`${creatorKey}-cycle`] || 1) + 1} for ${HASHTAG_DATA[creatorKey].name}? Past entries will be preserved.`)) return;
+  }
+
+  const log = getHashtagLog();
+  const currentCycle = log[`${creatorKey}-cycle`] || 1;
+  log[`${creatorKey}-cycle`] = currentCycle + 1;
+  saveHashtagLog(log);
+
+  buildHashtagPanels();
+  showHashtagCreator(creatorKey);
+}
+
 function clearHashtagLog(creatorKey) {
-  if (!confirm(`Reset all usage tracking for ${HASHTAG_DATA[creatorKey].name}?`)) return;
+  if (!confirm(`Reset ALL cycle data for ${HASHTAG_DATA[creatorKey].name}? This cannot be undone.`)) return;
   const log = getHashtagLog();
   HASHTAG_DATA[creatorKey].rotation.forEach((_, i) => { delete log[`${creatorKey}-${i}`]; });
+  delete log[`${creatorKey}-cycle`];
   saveHashtagLog(log);
   buildHashtagPanels();
   showHashtagCreator(creatorKey);
