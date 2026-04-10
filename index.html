@@ -2241,7 +2241,27 @@ const HASHTAG_DATA = {
 
 // Load/save hashtag rotation tracking from localStorage
 function getHashtagLog() {
-  try { return JSON.parse(localStorage.getItem('htag-log') || '{}'); } catch(e) { return {}; }
+  try {
+    const raw = JSON.parse(localStorage.getItem('htag-log') || '{}');
+    // Migrate old format: entries with done:true but no uses array and no postNum
+    // These caused wrong hashtags to show in lightbox — strip them out
+    let changed = false;
+    Object.keys(raw).forEach(k => {
+      if (k.includes('-cycle')) return;
+      const e = raw[k];
+      if (e && e.done && !e.uses && !e.postNum) {
+        // Old entry with no postNum — migrate to uses array without postNum so lightbox won't match
+        e.uses = [{ date: e.date || '', postNum: '', cycle: 1 }];
+        changed = true;
+      } else if (e && e.done && !e.uses && e.postNum) {
+        // Old entry with postNum — migrate properly
+        e.uses = [{ date: e.date || '', postNum: e.postNum, cycle: 1 }];
+        changed = true;
+      }
+    });
+    if (changed) localStorage.setItem('htag-log', JSON.stringify(raw));
+    return raw;
+  } catch(e) { return {}; }
 }
 function saveHashtagLog(log) {
   localStorage.setItem('htag-log', JSON.stringify(log));
@@ -2304,8 +2324,8 @@ function buildHashtagPanels() {
             </button>
           </td>
           <td style="width:200px;">
-            <input type="date" class="htag-date-input" id="hdate-${rowKey}" title="Date used this cycle">
-            <input type="text" class="htag-postnum-input" id="hpostnum-${rowKey}" placeholder="Post # / ID" title="Post ID for this cycle" style="margin-top:4px;">
+            <input type="date" class="htag-date-input" id="hdate-${rowKey}" value="${entry.draftDate || ''}" onchange="saveDraft('${rowKey}','draftDate',this.value)" title="Date used this cycle">
+            <input type="text" class="htag-postnum-input" id="hpostnum-${rowKey}" value="${entry.draftPostNum || ''}" onchange="saveDraft('${rowKey}','draftPostNum',this.value)" placeholder="Post # / ID" title="Post ID for this cycle" style="margin-top:4px;">
             ${usesHistoryHTML}
           </td>
           <td style="text-align:right;padding-right:12px;white-space:nowrap;">
@@ -2361,6 +2381,13 @@ function buildHashtagPanels() {
   });
 }
 
+function saveDraft(rowKey, field, value) {
+  const log = getHashtagLog();
+  if (!log[rowKey]) log[rowKey] = {};
+  log[rowKey][field] = value;
+  saveHashtagLog(log);
+}
+
 function toggleHashtagDone(rowKey, creatorKey, btn) {
   const log = getHashtagLog();
   const entry = log[rowKey] || {};
@@ -2371,17 +2398,20 @@ function toggleHashtagDone(rowKey, creatorKey, btn) {
   const isUsedThisCycle = existingIdx !== -1;
 
   if (isUsedThisCycle) {
-    // Unmark — remove this cycle's entry
+    // Unmark — remove this cycle's entry, restore draft fields
+    const removed = uses[existingIdx];
     uses.splice(existingIdx, 1);
+    entry.draftDate = removed.date || '';
+    entry.draftPostNum = removed.postNum || '';
   } else {
-    // Mark as used — add entry for this cycle with today's date
+    // Mark as used — use draft values or today's date
     const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
-    const dateInput = document.getElementById(`hdate-${rowKey}`);
-    const postnumInput = document.getElementById(`hpostnum-${rowKey}`);
-    const date = (dateInput && dateInput.value) ? dateInput.value : today;
-    const postNum = (postnumInput && postnumInput.value) ? postnumInput.value : '';
-    if (dateInput) dateInput.value = date;
+    const date = entry.draftDate || today;
+    const postNum = entry.draftPostNum || '';
     uses.push({ date, postNum, cycle: currentCycle });
+    // Clear drafts after committing
+    delete entry.draftDate;
+    delete entry.draftPostNum;
   }
 
   entry.uses = uses;
@@ -2390,7 +2420,6 @@ function toggleHashtagDone(rowKey, creatorKey, btn) {
   log[rowKey] = entry;
   saveHashtagLog(log);
 
-  // Refresh just this creator's panel
   buildHashtagPanels();
   showHashtagCreator(creatorKey);
 }
