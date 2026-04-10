@@ -2297,17 +2297,22 @@ function buildHashtagPanels() {
       const entry = log[rowKey] || {};
       // Support multi-cycle: uses is array of {date, postNum, cycle}
       const uses = entry.uses || (entry.done ? [{ date: entry.date || '', postNum: entry.postNum || '', cycle: 1 }] : []);
-      const currentCycle = (entry.cycle || 1);
+      const currentCycle = log[`${key}-cycle`] || 1;
       const usedThisCycle = uses.some(u => u.cycle === currentCycle);
       const escapedSet = set.replace(/'/g, "\\'");
 
       const usesHistoryHTML = uses.length > 0 ? `
-        <div style="margin-top:6px;display:flex;flex-direction:column;gap:3px;">
-          ${uses.map(u => `
-            <div style="font-size:10px;color:var(--muted);display:flex;gap:8px;align-items:center;">
-              <span style="color:var(--accent);font-weight:600;">C${u.cycle}</span>
-              <span>${u.date || '—'}</span>
-              <span style="color:var(--text);">${u.postNum ? '· Post #' + u.postNum : ''}</span>
+        <div style="margin-top:6px;display:flex;flex-direction:column;gap:6px;">
+          ${uses.map((u, uidx) => `
+            <div style="display:flex;flex-direction:column;gap:3px;">
+              <div style="font-size:9px;color:var(--accent);font-weight:600;letter-spacing:1px;">C${u.cycle}</div>
+              <input type="date" class="htag-date-input" value="${u.date || ''}" 
+                onchange="updateUseEntry('${rowKey}',${uidx},'date',this.value)"
+                style="font-size:10px;padding:3px 6px;">
+              <input type="text" class="htag-postnum-input" value="${u.postNum || ''}" 
+                placeholder="Post # / ID"
+                onchange="updateUseEntry('${rowKey}',${uidx},'postNum',this.value)"
+                style="font-size:10px;padding:3px 6px;">
             </div>
           `).join('')}
         </div>
@@ -2323,10 +2328,11 @@ function buildHashtagPanels() {
               ${usedThisCycle ? '✓' : '○'}
             </button>
           </td>
-          <td style="width:200px;">
-            <input type="date" class="htag-date-input" id="hdate-${rowKey}" value="${entry.draftDate || ''}" onchange="saveDraft('${rowKey}','draftDate',this.value)" title="Date used this cycle">
-            <input type="text" class="htag-postnum-input" id="hpostnum-${rowKey}" value="${entry.draftPostNum || ''}" onchange="saveDraft('${rowKey}','draftPostNum',this.value)" placeholder="Post # / ID" title="Post ID for this cycle" style="margin-top:4px;">
-            ${usesHistoryHTML}
+          <td style="width:220px;">
+            ${usedThisCycle ? usesHistoryHTML : `
+              <input type="date" class="htag-date-input" id="hdate-${rowKey}" value="${entry.draftDate || ''}" onchange="saveDraft('${rowKey}','draftDate',this.value)" title="Date used this cycle">
+              <input type="text" class="htag-postnum-input" id="hpostnum-${rowKey}" value="${entry.draftPostNum || ''}" onchange="saveDraft('${rowKey}','draftPostNum',this.value)" placeholder="Post # / ID" title="Post ID for this cycle" style="margin-top:4px;">
+            `}
           </td>
           <td style="text-align:right;padding-right:12px;white-space:nowrap;">
             <span style="font-size:9px;color:var(--muted);letter-spacing:0.5px;">C${currentCycle}</span>
@@ -2386,6 +2392,68 @@ function saveDraft(rowKey, field, value) {
   if (!log[rowKey]) log[rowKey] = {};
   log[rowKey][field] = value;
   saveHashtagLog(log);
+  // If Post ID changed, refresh open lightbox so it auto-tags immediately
+  if (field === 'draftPostNum') refreshLightboxHashtags();
+}
+
+function updateUseEntry(rowKey, useIdx, field, value) {
+  const log = getHashtagLog();
+  if (!log[rowKey]) log[rowKey] = {};
+  // Ensure uses array exists — migrate if needed
+  if (!log[rowKey].uses) {
+    log[rowKey].uses = log[rowKey].done
+      ? [{ date: log[rowKey].date || '', postNum: log[rowKey].postNum || '', cycle: 1 }]
+      : [];
+  }
+  if (!log[rowKey].uses[useIdx]) return;
+  log[rowKey].uses[useIdx][field] = value;
+  saveHashtagLog(log);
+  // Refresh open lightbox immediately when Post ID is updated
+  if (field === 'postNum') refreshLightboxHashtags();
+}
+
+// Refresh hashtag display in currently open lightbox without closing it
+function refreshLightboxHashtags() {
+  if (currentLightboxIndex === null) return;
+  const post = posts[currentLightboxIndex];
+  if (!post) return;
+
+  const hashtagBlock = document.getElementById('lbHashtagBlock');
+  const hashtagSetEl = document.getElementById('lbHashtagSet');
+  const hashtagRotNum = document.getElementById('lbHashtagRotNum');
+  if (!hashtagBlock || !hashtagSetEl || !hashtagRotNum) return;
+
+  const creatorKey = post.model ? post.model.toLowerCase() : '';
+  const creatorData = HASHTAG_DATA[creatorKey];
+  let matched = null;
+  let matchedRotIdx = null;
+
+  if (creatorData) {
+    const log = getHashtagLog();
+    for (let i = 0; i < creatorData.rotation.length; i++) {
+      const entry = log[`${creatorKey}-${i}`] || {};
+      const uses = entry.uses || (entry.done ? [{ date: entry.date || '', postNum: entry.postNum || '', cycle: 1 }] : []);
+      for (const use of uses) {
+        if (use.postNum && (
+          String(use.postNum) === String(post.id) ||
+          String(use.postNum) === String(post.reel)
+        )) {
+          matched = creatorData.rotation[i];
+          matchedRotIdx = i + 1;
+          break;
+        }
+      }
+      if (matched) break;
+    }
+  }
+
+  if (matched) {
+    hashtagSetEl.textContent = matched;
+    hashtagRotNum.textContent = `Rotation #${matchedRotIdx} of 14`;
+    hashtagBlock.style.display = 'block';
+  } else {
+    hashtagBlock.style.display = 'none';
+  }
 }
 
 function toggleHashtagDone(rowKey, creatorKey, btn) {
@@ -2422,6 +2490,7 @@ function toggleHashtagDone(rowKey, creatorKey, btn) {
 
   buildHashtagPanels();
   showHashtagCreator(creatorKey);
+  refreshLightboxHashtags();
 }
 
 function saveHashtagEntry(rowKey, field, value) {
